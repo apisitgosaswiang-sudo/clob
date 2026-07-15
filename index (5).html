@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>แบบประเมินสุขภาพและความพร้อมด้านการออกกำลังกาย</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#101214;
+    --bg-alt:#15181b;
+    --card:#1a1e22;
+    --line:#2a2f34;
+    --text:#eef1f2;
+    --muted:#8b959c;
+    --accent:#ff5a36;
+    --accent-2:#ffb020;
+    --pulse:#00d9a3;
+    --danger:#ff5a5a;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #1c2024 0%, var(--bg) 60%);
+    color:var(--text);
+    font-family:'Noto Sans Thai','Segoe UI',sans-serif;
+    line-height:1.6;
+    padding-bottom:60px;
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:0 20px;}
+
+  /* HERO */
+  .hero{
+    position:relative;
+    padding:56px 20px 40px;
+    text-align:center;
+    overflow:hidden;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(255,90,54,0.08), transparent 70%);
+  }
+  .pulse-line{
+    width:100%;
+    max-width:520px;
+    height:40px;
+    margin:0 auto 22px;
+    display:block;
+  }
+  .pulse-line path{
+    fill:none;
+    stroke:url(#pulseGrad);
+    stroke-width:2.5;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    stroke-dasharray:600;
+    stroke-dashoffset:600;
+    animation:draw 2.2s ease-out forwards;
+  }
+  @keyframes draw{to{stroke-dashoffset:0;}}
+  .eyebrow{
+    font-family:'Oswald',sans-serif;
+    letter-spacing:.24em;
+    text-transform:uppercase;
+    font-size:12px;
+    color:var(--accent-2);
+    font-weight:600;
+    margin-bottom:14px;
+  }
+  h1{
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:clamp(24px,5vw,34px);
+    line-height:1.3;
+    margin:0 0 14px;
+    color:#fff;
+  }
+  .hero p{
+    color:var(--muted);
+    font-size:15px;
+    max-width:480px;
+    margin:0 auto;
+  }
+
+  /* FORM */
+  form{margin-top:36px;}
+  .section{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:26px 22px;
+    margin-bottom:18px;
+    animation:fadeUp .5s ease both;
+  }
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    margin-bottom:20px;
+  }
+  .section-num{
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:13px;
+    color:var(--bg);
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    padding:4px 9px;
+    border-radius:6px;
+    flex-shrink:0;
+  }
+  .section-title{
+    font-family:'Oswald',sans-serif;
+    font-weight:600;
+    font-size:18px;
+    color:#fff;
+  }
+  .section-help{
+    font-size:13px;
+    color:var(--muted);
+    margin:-12px 0 18px;
+    padding-left:2px;
+  }
+  .field{margin-bottom:18px;}
+  .field:last-child{margin-bottom:0;}
+  label.field-label{
+    display:block;
+    font-size:14px;
+    font-weight:500;
+    color:#dfe4e7;
+    margin-bottom:8px;
+  }
+  .req{color:var(--accent);margin-left:3px;}
+
+  input[type=text],
+  input[type=email],
+  input[type=tel],
+  input[type=number],
+  textarea{
+    width:100%;
+    background:var(--bg-alt);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px 14px;
+    color:var(--text);
+    font-family:inherit;
+    font-size:15px;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  textarea{resize:vertical;min-height:70px;}
+  input:focus, textarea:focus{
+    outline:none;
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(255,90,54,0.18);
+  }
+  ::placeholder{color:#5c6469;}
+
+  .date-row{display:flex;gap:10px;}
+  .date-row input{text-align:center;}
+  .date-row .yy{flex:1.3;}
+  .date-row .mm, .date-row .dd{flex:1;}
+  .date-sub{font-size:11px;color:var(--muted);text-align:center;margin-top:4px;}
+
+  .choice-grid{display:flex;flex-wrap:wrap;gap:10px;}
+  .choice{
+    position:relative;
+  }
+  .choice input{position:absolute;opacity:0;width:0;height:0;}
+  .choice label{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:10px 16px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:var(--bg-alt);
+    font-size:14px;
+    color:var(--text);
+    cursor:pointer;
+    transition:all .15s;
+    user-select:none;
+  }
+  .choice input:checked + label{
+    background:linear-gradient(135deg,rgba(255,90,54,.18),rgba(255,176,32,.18));
+    border-color:var(--accent);
+    color:#fff;
+  }
+  .choice label:hover{border-color:#4a5157;}
+  .choice input:focus-visible + label{box-shadow:0 0 0 3px rgba(255,90,54,0.3);}
+
+  .other-text{margin-top:10px;display:none;}
+  .other-text.show{display:block;}
+
+  /* PAR-Q rows */
+  .parq-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:14px;
+    padding:14px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .parq-row:last-child{border-bottom:none;}
+  .parq-q{font-size:14px;color:#dfe4e7;flex:1;}
+  .parq-choice{display:flex;gap:8px;flex-shrink:0;}
+
+  /* Range / scale */
+  .scale-wrap{padding:6px 2px 0;}
+  input[type=range]{
+    width:100%;
+    accent-color:var(--accent);
+    height:4px;
+    background:var(--line);
+  }
+  .scale-labels{
+    display:flex;
+    justify-content:space-between;
+    font-size:11px;
+    color:var(--muted);
+    margin-top:4px;
+  }
+  .scale-value{
+    text-align:center;
+    font-family:'Oswald',sans-serif;
+    font-size:22px;
+    font-weight:600;
+    color:var(--accent-2);
+    margin-bottom:4px;
+  }
+
+  /* Consent */
+  .consent-text{
+    font-size:13px;
+    color:var(--muted);
+    background:var(--bg-alt);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px 16px;
+    margin-bottom:16px;
+  }
+
+  /* Submit */
+  .submit-bar{
+    position:sticky;
+    bottom:16px;
+    margin-top:26px;
+    padding:0 2px;
+  }
+  button[type=submit]{
+    width:100%;
+    padding:16px;
+    font-family:'Oswald',sans-serif;
+    font-size:16px;
+    font-weight:600;
+    letter-spacing:.03em;
+    text-transform:uppercase;
+    color:#101214;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    border:none;
+    border-radius:12px;
+    cursor:pointer;
+    box-shadow:0 8px 24px rgba(255,90,54,.25);
+    transition:transform .12s, box-shadow .12s;
+  }
+  button[type=submit]:hover{transform:translateY(-1px);box-shadow:0 12px 28px rgba(255,90,54,.32);}
+  button[type=submit]:active{transform:translateY(0);}
+  button[type=submit]:disabled{opacity:.6;cursor:wait;}
+  .privacy-note{
+    text-align:center;
+    font-size:12px;
+    color:var(--muted);
+    margin-top:12px;
+  }
+
+  /* Success screen */
+  .success{
+    display:none;
+    text-align:center;
+    padding:80px 20px;
+  }
+  .success.show{display:block;}
+  .success-icon{
+    width:64px;height:64px;margin:0 auto 20px;
+    border-radius:50%;
+    background:linear-gradient(135deg,var(--pulse),#00b386);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .success h2{
+    font-family:'Oswald',sans-serif;
+    font-size:22px;color:#fff;margin:0 0 10px;
+  }
+  .success p{color:var(--muted);font-size:14px;}
+
+  .error-banner{
+    display:none;
+    background:rgba(255,90,90,.12);
+    border:1px solid var(--danger);
+    color:#ffb3b3;
+    border-radius:10px;
+    padding:12px 14px;
+    font-size:13px;
+    margin-top:14px;
+  }
+  .error-banner.show{display:block;}
+
+  @keyframes fadeUp{
+    from{opacity:0;transform:translateY(10px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.01ms !important;transition:none !important;}
+    .pulse-line path{stroke-dashoffset:0;}
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <svg class="pulse-line" viewBox="0 0 520 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <linearGradient id="pulseGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#ff5a36"/>
+        <stop offset="100%" stop-color="#ffb020"/>
+      </linearGradient>
+    </defs>
+    <path d="M0,20 L110,20 L130,6 L150,34 L170,20 L190,20 L205,20 L220,4 L235,36 L250,20 L520,20"/>
+  </svg>
+  <div class="eyebrow">Health &amp; Exercise Readiness</div>
+  <h1>แบบประเมินสุขภาพและความพร้อมด้านการออกกำลังกาย</h1>
+  <p>กรุณากรอกข้อมูลตามความเป็นจริงให้ครบถ้วน ข้อมูลทั้งหมดจะถูกเก็บเป็นความลับ และใช้เพื่อออกแบบโปรแกรมการฝึกที่ปลอดภัยและเหมาะสมกับคุณเท่านั้น</p>
+</div>
+
+<div class="wrap">
+
+<form id="assessmentForm">
+  <input type="hidden" name="pageHistory" value="0,1,2,3,4">
+
+  <!-- 1 -->
+  <div class="section">
+    <div class="section-head"><span class="section-num">01</span><span class="section-title">ข้อมูลส่วนตัว</span></div>
+
+    <div class="field">
+      <label class="field-label">ชื่อ - นามสกุล<span class="req">*</span></label>
+      <input type="text" name="entry.1924105210" required autocomplete="name">
+    </div>
+
+    <div class="field">
+      <label class="field-label">ชื่อเล่น<span class="req">*</span></label>
+      <input type="text" name="entry.659750468" required>
+    </div>
+
+    <div class="field">
+      <label class="field-label">วันเกิด<span class="req">*</span></label>
+      <div class="date-row">
+        <div class="mm">
+          <input type="number" id="dobMonth" min="1" max="12" placeholder="MM" required>
+        </div>
+        <div class="dd">
+          <input type="number" id="dobDay" min="1" max="31" placeholder="DD" required>
+        </div>
+        <div class="yy">
+          <input type="number" id="dobYear" min="1920" max="2026" placeholder="YYYY" required>
+        </div>
+      </div>
+      <input type="hidden" name="entry.466059994" id="dobHidden">
+    </div>
+
+    <div class="field">
+      <label class="field-label">เพศ<span class="req">*</span></label>
+      <div class="choice-grid" id="genderGroup">
+        <div class="choice"><input type="radio" id="g1" name="entry.1853278880" value="ชาย" required><label for="g1">ชาย</label></div>
+        <div class="choice"><input type="radio" id="g2" name="entry.1853278880" value="หญิง" required><label for="g2">หญิง</label></div>
+        <div class="choice"><input type="radio" id="g3" name="entry.1853278880" value="__other_option__" required><label for="g3">Other</label></div>
+      </div>
+      <div class="other-text" id="genderOtherWrap">
+        <input type="text" id="genderOtherInput" placeholder="ระบุ...">
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">เบอร์ติดต่อ</label>
+      <input type="tel" name="entry.164017238" autocomplete="tel">
+    </div>
+
+    <div class="field">
+      <label class="field-label">LINE ID</label>
+      <input type="text" name="entry.1925777168">
+    </div>
+
+    <div class="field">
+      <label class="field-label">E-mail</label>
+      <input type="email" name="entry.238068244" autocomplete="email">
+    </div>
+
+    <div class="field">
+      <label class="field-label">ผู้ติดต่อฉุกเฉิน (ชื่อ / ความสัมพันธ์)</label>
+      <input type="text" name="entry.1359557203">
+    </div>
+
+    <div class="field">
+      <label class="field-label">เบอร์ติดต่อ ของผู้ติดต่อฉุกเฉิน</label>
+      <input type="tel" name="entry.2089973744">
+    </div>
+  </div>
+
+  <!-- 2 -->
+  <div class="section">
+    <div class="section-head"><span class="section-num">02</span><span class="section-title">ข้อมูลร่างกายเบื้องต้น</span></div>
+
+    <div class="field"><label class="field-label">ส่วนสูง (ซม.)</label><input type="number" step="0.1" name="entry.2107401810"></div>
+    <div class="field"><label class="field-label">น้ำหนัก (กก.)</label><input type="number" step="0.1" name="entry.1230211878"></div>
+    <div class="field"><label class="field-label">รอบเอว (ซม.)</label><input type="number" step="0.1" name="entry.973100371"></div>
+    <div class="field"><label class="field-label">ความดันโลหิต (ถ้าทราบ)</label><input type="text" placeholder="เช่น 120/80" name="entry.620518798"></div>
+    <div class="field"><label class="field-label">ชีพจรขณะพัก (ครั้ง/นาที)</label><input type="number" name="entry.1702931662"></div>
+  </div>
+
+  <!-- 3 PAR-Q -->
+  <div class="section">
+    <div class="section-head"><span class="section-num">03</span><span class="section-title">แบบคัดกรองความพร้อมด้านสุขภาพ (PAR-Q)</span></div>
+    <div class="section-help">หากตอบ "ใช่" ข้อใดข้อหนึ่ง แนะนำให้ปรึกษาแพทย์ก่อนเริ่มโปรแกรมการออกกำลังกาย</div>
+
+    <div class="parq-row">
+      <div class="parq-q">แพทย์เคยแจ้งว่าคุณมีปัญหาเกี่ยวกับหัวใจ และแนะนำให้ออกกำลังกายเฉพาะตามที่แพทย์สั่งเท่านั้น</div>
+      <div class="parq-choice">
+        <div class="choice"><input type="radio" id="p1y" name="entry.1784902219" value="ใช่" required><label for="p1y">ใช่</label></div>
+        <div class="choice"><input type="radio" id="p1n" name="entry.1784902219" value="ไม่ใช่" required><label for="p1n">ไม่ใช่</label></div>
+      </div>
+    </div>
+
+    <div class="parq-row">
+      <div class="parq-q">คุณรู้สึกเจ็บหน้าอกขณะทำกิจกรรมทางกาย หรือขณะพักในช่วงที่ผ่านมา</div>
+      <div class="parq-choice">
+        <div class="choice"><input type="radio" id="p2y" name="entry.1022554989" value="ใช่" required><label for="p2y">ใช่</label></div>
+        <div class="choice"><input type="radio" id="p2n" name="entry.1022554989" value="ไม่ใช่" required><label for="p2n">ไม่ใช่</label></div>
+      </div>
+    </div>
+
+    <div class="parq-row">
+      <div class="parq-q">ในช่วง 12 เดือนที่ผ่านมา คุณเคยหน้ามืด วิงเวียนศีรษะรุนแรง หรือหมดสติหรือไม่</div>
+      <div class="parq-choice">
+        <div class="choice"><input type="radio" id="p3y" name="entry.443998181" value="ใช่" required><label for="p3y">ใช่</label></div>
+        <div class="choice"><input type="radio" id="p3n" name="entry.443998181" value="ไม่ใช่" required><label for="p3n">ไม่ใช่</label></div>
+      </div>
+    </div>
+
+    <div class="parq-row">
+      <div class="parq-q">แพทย์เคยวินิจฉัยว่าคุณมีปัญหากระดูกหรือข้อต่อที่อาจแย่ลงจากการออกกำลังกาย</div>
+      <div class="parq-choice">
+        <div class="choice"><input type="radio" id="p4y" name="entry.444802427" value="ใช่" required><label for="p4y">ใช่</label></div>
+        <div class="choice"><input type="radio" id="p4n" name="entry.444802427" value="ไม่ใช่" required><label for="p4n">ไม่ใช่</label></div>
+      </div>
+    </div>
+
+    <div class="parq-row">
+      <div class="parq-q">ปัจจุบันคุณรับประทานยาควบคุมความดันโลหิตหรือยาเกี่ยวกับหัวใจอยู่หรือไม่</div>
+      <div class="parq-choice">
+        <div class="choice"><input type="radio" id="p5y" name="entry.1359866847" value="ใช่" required><label for="p5y">ใช่</label></div>
+        <div class="choice"><input type="radio" id="p5n" name="entry.1359866847" value="ไม่ใช่" required><label for="p5n">ไม่ใช่</label></div>
+      </div>
+    </div>
+
+    <div class="parq-row">
+      <div class="parq-q">คุณทราบเหตุผลทางกายภาพอื่นที่ควรหลีกเลี่ยงการออกกำลังกายหรือไม่</div>
+      <div class="parq-choice">
+        <div class="choice"><input type="radio" id="p6y" name="entry.1557404319" value="ใช่" required><label for="p6y">ใช่</label></div>
+        <div class="choice"><input type="radio" id="p6n" name="entry.1557404319" value="ไม่ใช่" required><label for="p6n">ไม่ใช่</label></div>
+      </div>
+    </div>
+
+    <div class="parq-row">
+      <div class="parq-q">สำหรับผู้หญิง: คุณกำลังตั้งครรภ์ หรือคลอดบุตรภายใน 6 เดือนที่ผ่านมาหรือไม่</div>
+      <div class="parq-choice">
+        <div class="choice"><input type="radio" id="p7y" name="entry.1538162476" value="ใช่" required><label for="p7y">ใช่</label></div>
+        <div class="choice"><input type="radio" id="p7n" name="entry.1538162476" value="ไม่ใช่" required><label for="p7n">ไม่ใช่</label></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 -->
+  <div class="section">
+    <div class="section-head"><span class="section-num">04</span><span class="section-title">ประวัติทางการแพทย์</span></div>
+    <div class="section-help">กรุณาทำเครื่องหมายในช่องที่ตรงกับคุณ (เลือกได้มากกว่า 1 ข้อ)</div>
+
+    <div class="field">
+      <label class="field-label">โรคประจำตัว</label>
+      <div class="choice-grid">
+        <div class="choice"><input type="checkbox" id="d1" name="entry.556419513" value="เบาหวาน"><label for="d1">เบาหวาน</label></div>
+        <div class="choice"><input type="checkbox" id="d2" name="entry.556419513" value="ไขมันในเลือดสูง"><label for="d2">ไขมันในเลือดสูง</label></div>
+        <div class="choice"><input type="checkbox" id="d3" name="entry.556419513" value="ไทรอยด์"><label for="d3">ไทรอยด์</label></div>
+        <div class="choice"><input type="checkbox" id="d4" name="entry.556419513" value="หอบหืด / โรคทางเดินหายใจ"><label for="d4">หอบหืด / โรคทางเดินหายใจ</label></div>
+        <div class="choice"><input type="checkbox" id="d5" name="entry.556419513" value="ปวดหลังเรื้อรัง"><label for="d5">ปวดหลังเรื้อรัง</label></div>
+        <div class="choice"><input type="checkbox" id="d6" name="entry.556419513" value="โรคภูมิแพ้"><label for="d6">โรคภูมิแพ้</label></div>
+        <div class="choice"><input type="checkbox" id="d7" name="entry.556419513" value="ความดันโลหิตสูง"><label for="d7">ความดันโลหิตสูง</label></div>
+        <div class="choice"><input type="checkbox" id="d8" name="entry.556419513" value="โรคหัวใจ"><label for="d8">โรคหัวใจ</label></div>
+        <div class="choice"><input type="checkbox" id="d9" name="entry.556419513" value="ข้อเข่า / ข้อต่ออักเสบ"><label for="d9">ข้อเข่า / ข้อต่ออักเสบ</label></div>
+        <div class="choice"><input type="checkbox" id="d10" name="entry.556419513" value="ภาวะวิตกกังวล / ซึมเศร้า"><label for="d10">ภาวะวิตกกังวล / ซึมเศร้า</label></div>
+        <div class="choice"><input type="checkbox" id="d11" name="entry.556419513" value="ไม่มีโรคประจำตัว"><label for="d11">ไม่มีโรคประจำตัว</label></div>
+        <div class="choice"><input type="checkbox" id="d12" name="entry.556419513" value="__other_option__" onchange="toggleOther('d12','disOtherWrap')"><label for="d12">Other</label></div>
+      </div>
+      <div class="other-text" id="disOtherWrap">
+        <input type="text" id="disOtherInput" placeholder="ระบุ...">
+      </div>
+    </div>
+  </div>
+
+  <!-- 5 -->
+  <div class="section">
+    <div class="section-head"><span class="section-num">05</span><span class="section-title">ยาและอาหารเสริมที่ใช้เป็นประจำ</span></div>
+    <div class="field"><label class="field-label">ยาที่ใช้ประจำ</label><textarea name="entry.490310867"></textarea></div>
+    <div class="field"><label class="field-label">อาหารเสริม / วิตามิน</label><textarea name="entry.517710186"></textarea></div>
+  </div>
+
+  <!-- 6 -->
+  <div class="section">
+    <div class="section-head"><span class="section-num">06</span><span class="section-title">ประวัติการบาดเจ็บ / การผ่าตัด</span></div>
+    <div class="field"><textarea name="entry.260130634" placeholder="โปรดระบุ (ถ้ามี)"></textarea></div>
+  </div>
+
+  <!-- 7 -->
+  <div class="section">
+    <div class="section-head"><span class="section-num">07</span><span class="section-title">ประสบการณ์การออกกำลังกาย</span></div>
+
+    <div class="field">
+      <label class="field-label">ระดับกิจกรรมปัจจุบัน</label>
+      <div class="choice-grid">
+        <div class="choice"><input type="radio" id="e1" name="entry.1307726130" value="แทบไม่ได้ออกกำลังกาย (Sedentary)"><label for="e1">แทบไม่ได้ออกกำลังกาย (Sedentary)</label></div>
+        <div class="choice"><input type="radio" id="e2" name="entry.1307726130" value="ออกกำลังกายเบา 1-2 ครั้ง/สัปดาห์"><label for="e2">เบา 1-2 ครั้ง/สัปดาห์</label></div>
+        <div class="choice"><input type="radio" id="e3" name="entry.1307726130" value="ออกกำลังกายสม่ำเสมอ 3-4 ครั้ง/สัปดาห์"><label for="e3">สม่ำเสมอ 3-4 ครั้ง/สัปดาห์</label></div>
+        <div class="choice"><input type="radio" id="e4" name="entry.1307726130" value="ออกกำลังกายเป็นประจำ 5 ครั้ง/สัปดาห์ขึ้นไป"><label for="e4">ประจำ 5 ครั้ง/สัปดาห์ขึ้นไป</label></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">รูปแบบการออกกำลังกายที่เคยทำ (เช่น เวทเทรนนิ่ง, วิ่ง, โยคะ, ว่ายน้ำ)</label>
+      <input type="text" name="entry.953967814">
+    </div>
+    <div class="field">
+      <label class="field-label">ท่าออกกำลังกายที่เคยทำแล้วรู้สึกเจ็บ หรือควรหลีกเลี่ยง</label>
+      <input type="text" name="entry.938363216">
+    </div>
+    <div class="field">
+      <label class="field-label">สถานที่ที่สะดวกฝึก (บ้าน / ฟิตเนส / กลางแจ้ง)</label>
+      <input type="text" name="entry.1142479577">
+    </div>
+  </div>
+
+  <!-- 8 -->
+  <div class="section">
+    <div class="section-head"><span class="section-num">08</span><span class="section-title">เป้าหมายการฝึก</span></div>
+    <div class="field">
+      <div class="choice-grid">
+        <div class="choice"><input type="checkbox" id="go1" name="entry.991687228" value="ลดน้ำหนัก / ลดไขมัน"><label for="go1">ลดน้ำหนัก / ลดไขมัน</label></div>
+        <div class="choice"><input type="checkbox" id="go2" name="entry.991687228" value="เพิ่มกล้ามเนื้อ"><label for="go2">เพิ่มกล้ามเนื้อ</label></div>
+        <div class="choice"><input type="checkbox" id="go3" name="entry.991687228" value="เพิ่มความฟิตหัวใจ-ปอด"><label for="go3">เพิ่มความฟิตหัวใจ-ปอด</label></div>
+        <div class="choice"><input type="checkbox" id="go4" name="entry.991687228" value="สุขภาพโดยรวม / คุณภาพชีวิต"><label for="go4">สุขภาพโดยรวม / คุณภาพชีวิต</label></div>
+        <div class="choice"><input type="checkbox" id="go5" name="entry.991687228" value="เพิ่มความแข็งแรง"><label for="go5">เพิ่มความแข็งแรง</label></div>
+        <div class="choice"><input type="checkbox" id="go6" name="entry.991687228" value="ฟื้นฟูร่างกายหลังบาดเจ็บ"><label for="go6">ฟื้นฟูร่างกายหลังบาดเจ็บ</label></div>
+        <div class="choice"><input type="checkbox" id="go7" name="entry.991687228" value="เตรียมตัวสำหรับกีฬา / กิจกรรมเฉพาะทาง"><label for="go7">เตรียมตัวสำหรับกีฬา / กิจกรรมเฉพาะทาง</label></div>
+        <div class="choice"><input type="checkbox" id="go8" name="entry.991687228" value="__other_option__" onchange="toggleOther('go8','goalOtherWrap')"><label for="go8">Other</label></div>
+      </div>
+      <div class="other-text" id="goalOtherWrap">
+        <input type="text" id="goalOtherInput" placeholder="ระบุ...">
+      </div>
+    </div>
+  </div>
+
+  <!-- 9 -->
+  <div class="section">
+    <div class="section-head"><span class="section-num">09</span><span class="section-title">ไลฟ์สไตล์และพฤติกรรมสุขภาพ</span></div>
+
+    <div class="field"><label class="field-label">ชั่วโมงนอนเฉลี่ย/คืน</label><input type="number" step="0.5" name="entry.1859478551"></div>
+
+    <div class="field">
+      <label class="field-label">คุณภาพการนอน (1-10)</label>
+      <div class="scale-wrap">
+        <div class="scale-value" id="sleepQualVal">5</div>
+        <input type="range" min="1" max="10" value="5" name="entry.278482656" oninput="document.getElementById('sleepQualVal').textContent=this.value">
+        <div class="scale-labels"><span>แย่</span><span>ดีมาก</span></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">ระดับความเครียด (1-10)</label>
+      <div class="scale-wrap">
+        <div class="scale-value" id="stressVal">5</div>
+        <input type="range" min="1" max="10" value="5" name="entry.1164194095" oninput="document.getElementById('stressVal').textContent=this.value">
+        <div class="scale-labels"><span>น้อย</span><span>สูงมาก</span></div>
+      </div>
+    </div>
+
+    <div class="field"><label class="field-label">ปริมาณน้ำดื่ม/วัน (ลิตร)</label><input type="number" step="0.1" name="entry.2050276149"></div>
+
+    <div class="field">
+      <label class="field-label">สูบบุหรี่</label>
+      <div class="choice-grid">
+        <div class="choice"><input type="radio" id="sm1" name="entry.8570948" value="สูบ"><label for="sm1">สูบ</label></div>
+        <div class="choice"><input type="radio" id="sm2" name="entry.8570948" value="ไม่สูบ"><label for="sm2">ไม่สูบ</label></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">ดื่มแอลกอฮอล์</label>
+      <div class="choice-grid">
+        <div class="choice"><input type="radio" id="al1" name="entry.796896641" value="ดื่มเป็นประจำ (ทุกสัปดาห์)"><label for="al1">ประจำ (ทุกสัปดาห์)</label></div>
+        <div class="choice"><input type="radio" id="al2" name="entry.796896641" value="ดื่มเเป็นครั้งคราว (เดือนละ 1 - 2 ครั้ง)"><label for="al2">ครั้งคราว (เดือนละ 1-2)</label></div>
+        <div class="choice"><input type="radio" id="al3" name="entry.796896641" value="ไม่ดื่ม"><label for="al3">ไม่ดื่ม</label></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">ลักษณะงาน / กิจกรรมระหว่างวัน (นั่งทำงานเป็นหลัก / เดินเยอะ / ใช้แรงกาย)</label>
+      <input type="text" name="entry.810024510">
+    </div>
+    <div class="field">
+      <label class="field-label">รูปแบบการกินโดยทั่วไป (เช่น มื้อหลัก, ของว่าง, ข้อจำกัดด้านอาหาร)</label>
+      <textarea name="entry.1742013993"></textarea>
+    </div>
+  </div>
+
+  <!-- 10 -->
+  <div class="section">
+    <div class="section-head"><span class="section-num">10</span><span class="section-title">ความพร้อมและตารางเวลา</span></div>
+
+    <div class="field">
+      <label class="field-label">ระดับความพร้อม/แรงจูงใจ (1-10)</label>
+      <div class="scale-wrap">
+        <div class="scale-value" id="motiveVal">5</div>
+        <input type="range" min="1" max="10" value="5" name="entry.1980645845" oninput="document.getElementById('motiveVal').textContent=this.value">
+        <div class="scale-labels"><span>น้อย</span><span>สูงมาก</span></div>
+      </div>
+    </div>
+
+    <div class="field"><label class="field-label">จำนวนวันที่สะดวกฝึก/สัปดาห์</label><input type="number" min="0" max="7" name="entry.122863644"></div>
+    <div class="field"><label class="field-label">ช่วงเวลาที่สะดวก (เช้า / บ่าย / เย็น / วันในสัปดาห์)</label><input type="text" name="entry.661118290"></div>
+  </div>
+
+  <!-- 11 -->
+  <div class="section">
+    <div class="section-head"><span class="section-num">11</span><span class="section-title">การยินยอมเข้าร่วมโปรแกรม</span></div>
+    <div class="consent-text">
+      ข้าพเจ้าขอรับรองว่าข้อมูลที่ให้ไว้ข้างต้นเป็นความจริงทุกประการ และเข้าใจว่าการออกกำลังกายมีความเสี่ยงต่อการบาดเจ็บ
+      ข้าพเจ้ายินดีเข้าร่วมโปรแกรมการฝึกโดยสมัครใจ และจะแจ้งให้โค้ชทราบทันทีหากมีการเปลี่ยนแปลงด้านสุขภาพ หรือรู้สึกผิดปกติระหว่างการฝึก
+    </div>
+    <div class="field">
+      <label class="field-label">แสดงความยินยอม<span class="req">*</span></label>
+      <div class="choice-grid">
+        <div class="choice"><input type="radio" id="c1" name="entry.1380464392" value="ยินยอม" required><label for="c1">ยินยอม</label></div>
+        <div class="choice"><input type="radio" id="c2" name="entry.1380464392" value="ไม่ยินยอม" required><label for="c2">ไม่ยินยอม</label></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="submit-bar">
+    <button type="submit" id="submitBtn">ส่งแบบประเมิน</button>
+    <div class="error-banner" id="errorBanner">กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วนก่อนส่งแบบฟอร์ม</div>
+    <div class="privacy-note">ข้อมูลของคุณถูกส่งตรงและเก็บเป็นความลับ</div>
+  </div>
+</form>
+
+<div class="success" id="successScreen">
+  <div class="success-icon">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M4 12.5L9.5 18L20 6" stroke="#0d1210" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+  <h2>ส่งแบบประเมินเรียบร้อยแล้ว</h2>
+  <p>ขอบคุณที่สละเวลากรอกข้อมูล ทีมงานจะนำข้อมูลไปใช้ออกแบบโปรแกรมที่เหมาะกับคุณ</p>
+</div>
+
+</div>
+
+<script>
+const GOOGLE_FORM_ACTION = "https://docs.google.com/forms/d/e/1FAIpQLScJwKxXd85MNFu0h4vky7wUyoK7xjlszVnd3wLtRIbzhVROig/formResponse";
+
+// Gender "Other" toggle
+const genderOtherRadio = document.getElementById('g3');
+const genderOtherWrap = document.getElementById('genderOtherWrap');
+document.getElementById('genderGroup').addEventListener('change', () => {
+  genderOtherWrap.classList.toggle('show', genderOtherRadio.checked);
+});
+
+function toggleOther(checkboxId, wrapId){
+  const cb = document.getElementById(checkboxId);
+  const wrap = document.getElementById(wrapId);
+  wrap.classList.toggle('show', cb.checked);
+}
+
+const form = document.getElementById('assessmentForm');
+const submitBtn = document.getElementById('submitBtn');
+const errorBanner = document.getElementById('errorBanner');
+const successScreen = document.getElementById('successScreen');
+
+function syncDobHidden(){
+  const m = document.getElementById('dobMonth').value.toString().padStart(2,'0');
+  const d = document.getElementById('dobDay').value.toString().padStart(2,'0');
+  const y = document.getElementById('dobYear').value.toString();
+  const hidden = document.getElementById('dobHidden');
+  if(document.getElementById('dobMonth').value && document.getElementById('dobDay').value && document.getElementById('dobYear').value){
+    hidden.value = `${y}-${m}-${d}`;
+  } else {
+    hidden.value = '';
+  }
+}
+['dobMonth','dobDay','dobYear'].forEach(id => {
+  document.getElementById(id).addEventListener('input', syncDobHidden);
+});
+
+form.addEventListener('submit', function(e){
+  e.preventDefault();
+  syncDobHidden();
+
+  if(!form.checkValidity()){
+    form.reportValidity();
+    errorBanner.classList.add('show');
+    return;
+  }
+  errorBanner.classList.remove('show');
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'กำลังส่งข้อมูล...';
+
+  const fd = new FormData(form);
+
+  // Attach "other" free-text responses
+  if(genderOtherRadio.checked){
+    fd.append('entry.1853278880.other_option_response', document.getElementById('genderOtherInput').value);
+  }
+  if(document.getElementById('d12').checked){
+    fd.append('entry.556419513.other_option_response', document.getElementById('disOtherInput').value);
+  }
+  if(document.getElementById('go8').checked){
+    fd.append('entry.991687228.other_option_response', document.getElementById('goalOtherInput').value);
+  }
+
+  fetch(GOOGLE_FORM_ACTION, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: fd
+  }).then(() => {
+    form.style.display = 'none';
+    successScreen.classList.add('show');
+    window.scrollTo({top:0, behavior:'smooth'});
+  }).catch(() => {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'ส่งแบบประเมิน';
+    errorBanner.textContent = 'ส่งข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง หรือตรวจสอบการเชื่อมต่ออินเทอร์เน็ต';
+    errorBanner.classList.add('show');
+  });
+});
+</script>
+
+</body>
+</html>
