@@ -1,3 +1,6 @@
+[hidden] {
+  display: none !important;
+}
 :root{
   --bg:#F8F9FB;--card:#fff;--text:#17181B;--muted:#777B85;--line:#EAECF0;
   --primary:#E11D48;--primary-soft:#FFF0F4;--accent:#0F9F88;
