@@ -1,0 +1,19 @@
+{
+  "module":"habitSystem",
+  "version":"0.9.3B",
+  "screens":[
+    "Habit Dashboard",
+    "Daily Habits",
+    "Habit Calendar",
+    "Habit Analytics",
+    "Coach Habit Settings"
+  ],
+  "defaultHabits":[
+    "Water",
+    "Sleep",
+    "Steps",
+    "Cardio",
+    "Stretching",
+    "Supplements"
+  ]
+}

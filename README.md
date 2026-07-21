@@ -1,41 +1,32 @@
-# CLOB Pack09-3A – Coaching Plan
+# CLOB Pack09-3B – Habit System
 
-This pack defines the Coaching Plan module.
+Features
+- Daily Habits
+- Water Tracking
+- Sleep Tracking
+- Steps Goal
+- Cardio Minutes
+- Stretching
+- Supplements
+- Habit Streak
+- Weekly Calendar
+- Coach configurable habit goals
 
-Included:
-- Coaching Goal
-- Start / End Date
-- Current Phase
-- Current Week
-- Plan Status
-- Nutrition Targets
-- Workout Targets
-- Progress %
-- Coach Notes
-- Firebase structure proposal
-
-Firebase:
+Firebase
 
 clob/
   onlineCoaching/
     {memberCode}/
-      coachingPlan/
-        goal
-        startDate
-        endDate
-        phase
-        currentWeek
-        status
-        nutrition/
-          calories
-          protein
-          carbs
-          fat
-          fiber
-          water
-        workout/
-          split
-          weeklySessions
-          cardioMinutes
-          stepsGoal
-        coachNotes
+      habits/
+        settings/
+        daily/
+          YYYY-MM-DD/
+            water
+            sleep
+            steps
+            cardio
+            stretching
+            supplements
+            completed
+        streak
+        analytics
