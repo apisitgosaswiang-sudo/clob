@@ -58,3 +58,16 @@ CLOB คือแพลตฟอร์มที่เชื่อม Trainer แ
 - Weight & Package Overview
 - Next Session
 - Member Bottom Navigation
+
+
+## Pack 03 Completed
+
+- Workout Overview
+- Exercise Tracker
+- Weight / Reps / RPE
+- Set Completion
+- Auto-fill Previous Weight
+- Rest Timer
+- Workout Progress
+- Finish Workout
+- Completed Activity for Trainer Dashboard

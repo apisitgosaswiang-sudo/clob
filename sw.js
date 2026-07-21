@@ -1,4 +1,4 @@
-const CACHE_NAME = "clob-pack02-v1";
+const CACHE_NAME = "clob-pack03-v1";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -11,6 +11,7 @@ const APP_SHELL = [
   "./js/member.js",
   "./js/router.js",
   "./js/views.js",
+  "./js/workout.js",
   "./manifest.json",
   "./assets/logo.svg"
 ];

@@ -1,6 +1,6 @@
 import { APP_CONFIG } from "./config.js";
 import { navigate } from "./router.js";
-import { loadMember, recordWorkoutStart } from "./member.js";
+import { loadMember, createWorkoutSession, getActiveWorkoutSession } from "./member.js";
 
 const app = document.querySelector("#app");
 
@@ -334,21 +334,9 @@ export async function renderMemberDashboard() {
     </div>
   `, "member-page");
 
-  document.querySelector("#start-workout-button").addEventListener("click", async () => {
-    const button = document.querySelector("#start-workout-button");
-    button.disabled = true;
-    button.textContent = "กำลังเตรียม Workout...";
-
-    await recordWorkoutStart(code, member.workout.title);
-    sessionStorage.setItem("clob_active_workout", member.workout.title);
-
-    button.disabled = false;
-    button.innerHTML = `เริ่มแล้ว <span>✓</span>`;
-
-    const toast = document.querySelector("#member-toast");
-    toast.hidden = false;
-    toast.textContent = "บันทึกการเริ่ม Workout แล้ว — หน้าติดตามเซตจะมาใน Pack 03";
-    setTimeout(() => { toast.hidden = true; }, 3600);
+  document.querySelector("#start-workout-button").addEventListener("click", () => {
+    createWorkoutSession(code, member);
+    navigate("/workout");
   });
 
   document.querySelector("#member-menu-button").addEventListener("click", () => {
@@ -364,8 +352,16 @@ export async function renderMemberDashboard() {
       document.querySelectorAll(".nav-item").forEach((item) => item.classList.remove("is-active"));
       button.classList.add("is-active");
 
+      if (button.dataset.nav === "workout") {
+        const active = getActiveWorkoutSession(code);
+        if (!active || active.status === "completed") {
+          createWorkoutSession(code, member);
+        }
+        navigate("/workout");
+        return;
+      }
+
       const labels = {
-        workout: "Workout Tracking จะพร้อมใน Pack 03",
         progress: "หน้ารายละเอียด Progress จะพร้อมใน Pack 08",
         profile: "หน้า Profile จะเพิ่มใน Pack ถัดไป"
       };

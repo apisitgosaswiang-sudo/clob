@@ -7,12 +7,29 @@ import {
   renderTrainerPlaceholder,
   renderNotFound
 } from "./views.js";
+import {
+  renderWorkoutOverview,
+  renderExerciseTracker,
+  renderWorkoutComplete
+} from "./workout.js";
 
 registerRoute("/", renderLanding);
 registerRoute("/trainer-login", renderTrainerLogin);
 registerRoute("/member", renderMemberDashboard);
+registerRoute("/workout", renderWorkoutOverview);
+registerRoute("/workout-complete", renderWorkoutComplete);
 registerRoute("/trainer", renderTrainerPlaceholder);
-registerRoute("/404", renderNotFound);
+registerRoute("/404", () => {
+  const path = window.location.hash.replace(/^#/, "");
+  const match = path.match(/^\/workout-exercise-(\d+)$/);
+
+  if (match) {
+    renderExerciseTracker(Number(match[1]));
+    return;
+  }
+
+  renderNotFound();
+});
 
 startRouter();
 initializeFirebase();

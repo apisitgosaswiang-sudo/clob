@@ -60,7 +60,7 @@ export async function getMemberByCode(code) {
   }
 }
 
-export async function saveMemberCheckIn(code, payload) {
+export async function saveMemberActivity(code, payload) {
   if (!firebaseReady || !database || !dbApi) return false;
 
   try {
@@ -71,6 +71,31 @@ export async function saveMemberCheckIn(code, payload) {
     return true;
   } catch (error) {
     console.warn("Could not save activity:", error);
+    return false;
+  }
+}
+
+export async function saveWorkoutSession(code, sessionId, payload) {
+  if (!firebaseReady || !database || !dbApi) return false;
+
+  try {
+    await dbApi.set(
+      dbApi.ref(database, `clob/workoutSessions/${code}/${sessionId}`),
+      payload
+    );
+
+    await dbApi.update(
+      dbApi.ref(database, `clob/members/${code}`),
+      {
+        lastWorkoutStatus: payload.status,
+        lastWorkoutTitle: payload.title,
+        lastWorkoutUpdatedAt: payload.updatedAt
+      }
+    );
+
+    return true;
+  } catch (error) {
+    console.warn("Could not save workout session:", error);
     return false;
   }
 }
