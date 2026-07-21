@@ -1,17 +1,14 @@
-# Workout Tracker V2.3.1 Repaired
+# Workout Tracker V2.3.2 Dashboard Upgrade
 
-ฐานโค้ด: Repository TestS branch main
+เพิ่มเฉพาะ Trainer Dashboard:
+- คำทักทายตามช่วงเวลา
+- Workout วันนี้
+- Active / ใกล้หมดอายุ / หมดอายุ
+- Weekly Performance
+- Quick Actions เพิ่มเติม
+- Activity ล่าสุด
+- Coach Insight
+- ไม่เปลี่ยน Firebase schema
+- Program Templates ยังเป็น Placeholder
 
-แก้ในรอบนี้:
-- แก้ JavaScript syntax error จากตัวแปร `latest` ประกาศซ้ำ
-- ตรวจ app.js ด้วย esbuild แล้วผ่าน
-- คง Dashboard, ลูกเทรน, Membership และ Exercise Library เดิม
-- คงเมนู Program Templates แบบ Placeholder
-- เพิ่ม cache-busting สำหรับ app.js และ style.css
-
-อัปโหลดไฟล์ทั้ง 5 ตัวทับใน GitHub:
-- index.html
-- style.css
-- app.js
-- firebase.js
-- README.md
+ตรวจ app.js ด้วย esbuild แล้วผ่าน

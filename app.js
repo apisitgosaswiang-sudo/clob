@@ -1,4 +1,4 @@
-window.__WORKOUT_BUILD__ = "2.3.1-repaired";
+window.__WORKOUT_BUILD__ = "2.3.2-dashboard";
 import { auth, dataRef, get, set, signInAnonymously } from "./firebase.js";
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
@@ -367,16 +367,71 @@ function countThisWeekLogs(logs){
   }).length;
 }
 
+
+function countTodayLogs(logs){
+  const todayLabel=today();
+  return asArray(logs).filter(log=>String(log?.date||"")===todayLabel).length;
+}
+
+function trainerGreeting(){
+  const hour=new Date().getHours();
+  if(hour<12)return "สวัสดีตอนเช้า";
+  if(hour<17)return "สวัสดีตอนบ่าย";
+  return "สวัสดีตอนเย็น";
+}
+
+function dashboardRecentActivities(customers){
+  const activities=[];
+  customers.forEach(customer=>{
+    asArray(S.data.logs?.[customer.id]).forEach(log=>{
+      activities.push({
+        customerId:customer.id,
+        customerName:customer.name,
+        date:String(log?.date||""),
+        dayName:String(log?.dayName||"Workout"),
+        entries:asArray(log?.entries).length
+      });
+    });
+  });
+  return activities.slice(-5).reverse();
+}
+
+function findMostUsedProgram(customers){
+  const counts=new Map();
+  customers.forEach(customer=>{
+    asArray(S.data.programs?.[customer.id]?.days).forEach(day=>{
+      const name=String(day?.name||"").trim();
+      if(!name)return;
+      counts.set(name,(counts.get(name)||0)+1);
+    });
+  });
+  let winner=null;
+  counts.forEach((count,name)=>{
+    if(!winner||count>winner.count)winner={name,count};
+  });
+  return winner;
+}
+
 function trainerDashboardData(){
   const customers=asArray(S.data.customers);
   const totalCustomers=customers.length;
   const totalPrograms=customers.reduce((sum,c)=>sum+asArray(S.data.programs?.[c.id]?.days).length,0);
   const totalLogs=customers.reduce((sum,c)=>sum+asArray(S.data.logs?.[c.id]).length,0);
   const weeklyLogs=customers.reduce((sum,c)=>sum+countThisWeekLogs(S.data.logs?.[c.id]),0);
+  const todayLogs=customers.reduce((sum,c)=>sum+countTodayLogs(S.data.logs?.[c.id]),0);
   const expiringSoon=customers.filter(c=>packageInfo(c).status==="soon").length;
   const expired=customers.filter(c=>packageInfo(c).status==="expired").length;
   const activePackages=customers.filter(c=>packageInfo(c).status==="active").length;
-  return {totalCustomers,totalPrograms,totalLogs,weeklyLogs,expiringSoon,expired,activePackages};
+  const unsetPackages=customers.filter(c=>packageInfo(c).status==="unset").length;
+  const weeklyTarget=Math.max(totalCustomers*3,1);
+  const weeklyCompletion=Math.min(100,Math.round((weeklyLogs/weeklyTarget)*100));
+  const recentActivities=dashboardRecentActivities(customers);
+  const popularProgram=findMostUsedProgram(customers);
+  return {
+    totalCustomers,totalPrograms,totalLogs,weeklyLogs,todayLogs,
+    expiringSoon,expired,activePackages,unsetPackages,
+    weeklyTarget,weeklyCompletion,recentActivities,popularProgram
+  };
 }
 
 function renderTrainerDashboard(){
@@ -385,34 +440,39 @@ function renderTrainerDashboard(){
 
   $("#app").innerHTML=`
     ${nav("dashboard")}
-    <section class="hero-dashboard">
-      <div class="hero-eyebrow">⚡ Trainer Command Center</div>
-      <h1 class="hero-title">ภาพรวมการดูแลลูกเทรนของคุณ</h1>
-      <p class="hero-subtitle">ติดตามโปรแกรม ความสม่ำเสมอ และความคืบหน้าได้จากหน้าเดียว</p>
+
+    <section class="hero-dashboard dashboard-hero-v232">
+      <div class="hero-eyebrow">⚡ TRAINER COMMAND CENTER</div>
+      <h1 class="hero-title">${trainerGreeting()}, Coach</h1>
+      <p class="hero-subtitle">วันนี้มี Workout บันทึกแล้ว ${d.todayLogs} รายการ และมีลูกเทรน Active ${d.activePackages} คน</p>
       <div class="hero-actions">
         <button class="btn btn-primary" id="dashAddCustomer">＋ เพิ่มลูกเทรน</button>
-        <button class="btn" id="dashOpenLibrary">🏋️ Exercise Library</button>
+        <button class="btn" id="dashOpenCustomers">👥 ดูลูกเทรนทั้งหมด</button>
+      </div>
+      <div class="hero-date-line">
+        <span>📅 ${today()}</span>
+        <span class="badge badge-accent">LIVE DATA</span>
       </div>
     </section>
 
-    <div class="dashboard-grid">
-      <div class="metric-card">
-        <div class="metric-icon">👥</div>
-        <div class="metric-label">ลูกเทรนทั้งหมด</div>
-        <div class="metric-value">${d.totalCustomers}</div>
-        <div class="metric-note">โปรไฟล์ที่กำลังดูแล</div>
+    <div class="dashboard-grid dashboard-grid-v232">
+      <div class="metric-card metric-card-featured">
+        <div class="metric-icon">🔥</div>
+        <div class="metric-label">Workout วันนี้</div>
+        <div class="metric-value">${d.todayLogs}</div>
+        <div class="metric-note">Session ที่บันทึกวันนี้</div>
       </div>
       <div class="metric-card mint">
-        <div class="metric-icon">✅</div>
-        <div class="metric-label">Workout สัปดาห์นี้</div>
-        <div class="metric-value">${d.weeklyLogs}</div>
-        <div class="metric-note">รายการที่บันทึกแล้ว</div>
+        <div class="metric-icon">👥</div>
+        <div class="metric-label">ลูกเทรน Active</div>
+        <div class="metric-value">${d.activePackages}</div>
+        <div class="metric-note">จากทั้งหมด ${d.totalCustomers} คน</div>
       </div>
       <div class="metric-card warning">
-        <div class="metric-icon">📋</div>
-        <div class="metric-label">วันฝึกทั้งหมด</div>
-        <div class="metric-value">${d.totalPrograms}</div>
-        <div class="metric-note">ในทุกโปรแกรม</div>
+        <div class="metric-icon">⏳</div>
+        <div class="metric-label">ใกล้หมดอายุ</div>
+        <div class="metric-value">${d.expiringSoon}</div>
+        <div class="metric-note">เหลือไม่เกิน 14 วัน</div>
       </div>
       <div class="metric-card">
         <div class="metric-icon">📈</div>
@@ -422,41 +482,79 @@ function renderTrainerDashboard(){
       </div>
     </div>
 
-    <div class="package-summary-grid">
-      <div class="package-summary active"><span>●</span><div><b>${d.activePackages}</b><small>แพ็กเกจ Active</small></div></div>
-      <div class="package-summary soon"><span>⏳</span><div><b>${d.expiringSoon}</b><small>ใกล้หมดอายุ</small></div></div>
-      <div class="package-summary expired"><span>⛔</span><div><b>${d.expired}</b><small>หมดอายุ</small></div></div>
-    </div>
-
-    ${d.expiringSoon||d.expired?`<div class="subscription-alert">
-      <div><strong>แจ้งเตือนแพ็กเกจสมาชิก</strong><span>${d.expiringSoon?`${d.expiringSoon} คนใกล้หมดอายุ`:""}${d.expiringSoon&&d.expired?" · ":""}${d.expired?`${d.expired} คนหมดอายุแล้ว`:""}</span></div>
-      <button class="btn btn-pill" id="viewPackageAlerts">ตรวจสอบ</button>
-    </div>`:""}
-
-    <div class="status-strip">
-      <div>
-        <strong>ระบบพร้อมใช้งาน 🟢</strong>
-        <span style="display:block">Firebase เชื่อมต่อและบันทึกอัตโนมัติ</span>
+    <div class="card weekly-performance-card">
+      <div class="row-between">
+        <div>
+          <span class="dashboard-kicker">WEEKLY PERFORMANCE</span>
+          <h3 style="margin-top:5px">เป้าหมายการฝึกประจำสัปดาห์</h3>
+        </div>
+        <strong class="weekly-percent">${d.weeklyCompletion}%</strong>
       </div>
-      <span class="badge badge-accent">LIVE</span>
+      <div class="progress-bar dashboard-progress"><span style="width:${d.weeklyCompletion}%"></span></div>
+      <div class="row-between weekly-caption">
+        <span>${d.weeklyLogs} Workout สำเร็จ</span>
+        <span>เป้าหมาย ${d.weeklyTarget}</span>
+      </div>
     </div>
+
+    <div class="package-summary-grid">
+      <button class="package-summary active dashboard-package-button" data-dashboard-customers="active"><span>●</span><div><b>${d.activePackages}</b><small>Active</small></div></button>
+      <button class="package-summary soon dashboard-package-button" data-dashboard-customers="soon"><span>⏳</span><div><b>${d.expiringSoon}</b><small>ใกล้หมดอายุ</small></div></button>
+      <button class="package-summary expired dashboard-package-button" data-dashboard-customers="expired"><span>⛔</span><div><b>${d.expired}</b><small>หมดอายุ</small></div></button>
+    </div>
+
+    ${d.unsetPackages?`<div class="subscription-alert subscription-alert-neutral">
+      <div><strong>ยังไม่กำหนดแพ็กเกจ ${d.unsetPackages} คน</strong><span>กรุณาเพิ่มระยะเวลาสมัครให้ข้อมูลครบถ้วน</span></div>
+      <button class="btn btn-pill" id="viewUnsetPackages">ตรวจสอบ</button>
+    </div>`:""}
 
     <div class="section-heading">
       <h3>Quick Actions</h3>
-      <span class="small">เข้าถึงเมนูสำคัญ</span>
+      <span class="small">เมนูที่ใช้งานบ่อย</span>
     </div>
 
-    <div class="quick-grid">
+    <div class="quick-grid quick-grid-v232">
       <button class="quick-action" id="quickCustomers">
         <span class="emoji">👤</span>
         <b>จัดการลูกเทรน</b>
         <span>โปรไฟล์ โปรแกรม และผลการฝึก</span>
       </button>
+      <button class="quick-action" id="quickTemplates">
+        <span class="emoji">📋</span>
+        <b>Program Templates</b>
+        <span>เตรียมชุดโปรแกรมสำหรับใช้ซ้ำ</span>
+      </button>
       <button class="quick-action" id="quickLibrary">
         <span class="emoji">🏋️</span>
-        <b>คลังท่าออกกำลังกาย</b>
+        <b>Exercise Library</b>
         <span>เพิ่มท่าและวิดีโอประกอบ</span>
       </button>
+      <button class="quick-action" id="quickAddCustomer">
+        <span class="emoji">➕</span>
+        <b>เพิ่มลูกเทรนใหม่</b>
+        <span>เริ่มแพ็กเกจและสร้างรหัสสมาชิก</span>
+      </button>
+    </div>
+
+    <div class="section-heading">
+      <h3>Activity ล่าสุด</h3>
+      <span class="small">${d.recentActivities.length} รายการล่าสุด</span>
+    </div>
+
+    <div class="activity-list">
+      ${d.recentActivities.length?d.recentActivities.map(item=>`
+        <button class="activity-item" data-activity-customer="${item.customerId}">
+          <span class="activity-icon">✅</span>
+          <span class="activity-content">
+            <b>${esc(item.customerName)}</b>
+            <small>${esc(item.dayName)} · ${item.entries} ท่า</small>
+          </span>
+          <span class="activity-date">${esc(item.date||"-")}</span>
+        </button>`).join(""):`
+        <div class="empty-state">
+          <span class="emoji">📭</span>
+          ยังไม่มี Workout ล่าสุด
+        </div>`}
     </div>
 
     <div class="section-heading">
@@ -470,17 +568,58 @@ function renderTrainerDashboard(){
           <span class="emoji">🚀</span>
           ยังไม่มีลูกเทรน เริ่มเพิ่มคนแรกได้เลย
         </div>`}
+    </div>
+
+    <div class="card dashboard-insight-card">
+      <span class="dashboard-kicker">COACH INSIGHT</span>
+      <h3>${d.popularProgram?`โปรแกรมที่ใช้บ่อย: ${esc(d.popularProgram.name)}`:"ยังไม่มีข้อมูลโปรแกรม"}</h3>
+      <p class="small">${d.popularProgram?`ถูกใช้ใน ${d.popularProgram.count} วันฝึก`:"เมื่อเริ่มจัด Workout Plan ระบบจะแสดงข้อมูลเชิงสรุปตรงนี้"}</p>
     </div>`;
 
   bindNav();
-  const goCustomers=()=>{S.screen="customers";S.dashboardMode=false;renderFromTop()};
-  $("#dashAddCustomer").onclick=()=>{S.screen="customers";S.dashboardMode=false;S.showAdd=true;renderFromTop()};
-  $("#dashOpenLibrary").onclick=()=>{S.screen="catalog";renderFromTop()};
+
+  const goCustomers=()=>{
+    S.screen="customers";
+    S.dashboardMode=false;
+    renderFromTop();
+  };
+  const goAddCustomer=()=>{
+    S.screen="customers";
+    S.dashboardMode=false;
+    S.showAdd=true;
+    renderFromTop();
+  };
+
+  $("#dashAddCustomer").onclick=goAddCustomer;
+  $("#dashOpenCustomers").onclick=goCustomers;
   $("#quickCustomers").onclick=goCustomers;
-  $("#quickLibrary").onclick=()=>{S.screen="catalog";renderFromTop()};
+  $("#quickTemplates").onclick=()=>{
+    S.screen="templates";
+    S.dashboardMode=false;
+    renderFromTop();
+  };
+  $("#quickLibrary").onclick=()=>{
+    S.screen="catalog";
+    S.dashboardMode=false;
+    renderFromTop();
+  };
+  $("#quickAddCustomer").onclick=goAddCustomer;
   $("#viewAllCustomers").onclick=goCustomers;
-  if($("#viewPackageAlerts"))$("#viewPackageAlerts").onclick=goCustomers;
-  $$("[data-customer]").forEach(b=>b.onclick=()=>{S.customerId=b.dataset.customer;S.screen="program";S.programTab="overview";renderFromTop()});
+  if($("#viewUnsetPackages"))$("#viewUnsetPackages").onclick=goCustomers;
+
+  $$("[data-dashboard-customers]").forEach(button=>button.onclick=goCustomers);
+  $$("[data-customer]").forEach(button=>button.onclick=()=>{
+    S.customerId=button.dataset.customer;
+    S.screen="program";
+    S.programTab="overview";
+    renderFromTop();
+  });
+  $$("[data-activity-customer]").forEach(button=>button.onclick=()=>{
+    S.customerId=button.dataset.activityCustomer;
+    S.screen="program";
+    S.programTab="overview";
+    renderFromTop();
+  });
 }
 
 function renderCustomers(){
