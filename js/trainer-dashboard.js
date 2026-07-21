@@ -178,7 +178,7 @@ export async function renderTrainerDashboard() {
   });
 
   document.querySelector("#view-all-members").addEventListener("click", () => {
-    showToast("หน้า Members แบบเต็มจะมาใน Pack 05");
+    navigate("/members");
   });
 
   document.querySelectorAll("[data-member-code]").forEach((button) => {
@@ -192,9 +192,12 @@ export async function renderTrainerDashboard() {
     button.addEventListener("click", () => {
       const target = button.dataset.trainerNav;
       if (target === "dashboard") return;
+      if (target === "members") {
+        navigate("/members");
+        return;
+      }
 
       const labels = {
-        members: "หน้า Members จะมาใน Pack 05",
         programs: "Program Builder จะมาใน Pack 06",
         library: "Exercise Library จะมาใน Pack 07",
         settings: "Settings จะเพิ่มใน Pack ถัดไป"
