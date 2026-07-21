@@ -1,4 +1,4 @@
-window.__WORKOUT_BUILD__ = "2.3.3-member-dashboard";
+window.__WORKOUT_BUILD__ = "2.3.5-template-create";
 import { auth, dataRef, get, set, signInAnonymously } from "./firebase.js";
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
@@ -100,9 +100,9 @@ function packageBadge(customer){
   return `<span class="package-badge ${p.className}">${p.status==="expired"?"⛔":p.status==="soon"?"⏳":p.status==="active"?"●":"—"} ${esc(p.label)}</span>`;
 }
 
-const emptyData=()=>({customers:[],programs:{},logs:{},catalog:{categories:[]},bodyStats:{}});
+const emptyData=()=>({customers:[],programs:{},logs:{},catalog:{categories:[]},bodyStats:{},programTemplates:[]});
 let saveTimer=null,ready=false;
-let S={data:null,role:null,screen:"customers",dashboardMode:true,customerId:null,activeDayId:null,customerTab:"dashboard",programTab:"overview",entries:{},showAdd:false,lastCode:null};
+let S={data:null,role:null,screen:"customers",dashboardMode:true,customerId:null,activeDayId:null,customerTab:"dashboard",programTab:"overview",entries:{},showAdd:false,lastCode:null,showTemplateForm:false};
 
 function asArray(value){
   if(Array.isArray(value))return value.filter(Boolean);
@@ -118,6 +118,14 @@ function normalize(raw){
   d.programs=d.programs&&typeof d.programs==="object"?d.programs:{};
   d.logs=d.logs&&typeof d.logs==="object"?d.logs:{};
   d.bodyStats=d.bodyStats&&typeof d.bodyStats==="object"?d.bodyStats:{};
+  d.programTemplates=asArray(d.programTemplates).map((template,index)=>({
+    ...template,
+    id:String(template?.id??uid()),
+    name:String(template?.name??`Program ${index+1}`),
+    category:String(template?.category??"General"),
+    description:String(template?.description??""),
+    createdAt:String(template?.createdAt??isoToday())
+  }));
 
   const catalogSource=d.catalog&&typeof d.catalog==="object"?d.catalog:{};
   d.catalog={categories:asArray(catalogSource.categories).map(cat=>({
@@ -419,6 +427,102 @@ function findMostUsedProgram(customers){
   return winner;
 }
 
+
+function daysSinceThaiDate(value){
+  const date=parseThaiOrISODate(value);
+  if(!date)return null;
+  const now=new Date();
+  now.setHours(0,0,0,0);
+  date.setHours(0,0,0,0);
+  return Math.max(0,Math.floor((now-date)/86400000));
+}
+
+function latestRecordDate(records){
+  const list=asArray(records).filter(item=>item?.date);
+  if(!list.length)return null;
+  return list[list.length-1].date;
+}
+
+function trainerFollowUps(customers){
+  const items=[];
+
+  customers.forEach(customer=>{
+    const pkg=packageInfo(customer);
+    const logs=asArray(S.data.logs?.[customer.id]);
+    const stats=asArray(S.data.bodyStats?.[customer.id]);
+    const lastWorkoutDate=latestRecordDate(logs);
+    const lastCheckinDate=latestRecordDate(stats);
+    const workoutGap=lastWorkoutDate?daysSinceThaiDate(lastWorkoutDate):null;
+    const checkinGap=lastCheckinDate?daysSinceThaiDate(lastCheckinDate):null;
+
+    if(pkg.status==="expired"){
+      items.push({
+        customerId:customer.id,
+        customerName:customer.name,
+        type:"expired",
+        icon:"⛔",
+        title:"แพ็กเกจหมดอายุ",
+        detail:`หมดอายุ ${formatThaiDate(pkg.end)}`
+      });
+      return;
+    }
+
+    if(pkg.status==="soon"){
+      items.push({
+        customerId:customer.id,
+        customerName:customer.name,
+        type:"soon",
+        icon:"⏳",
+        title:"แพ็กเกจใกล้หมด",
+        detail:`เหลือ ${pkg.daysLeft} วัน`
+      });
+    }
+
+    if(workoutGap===null){
+      items.push({
+        customerId:customer.id,
+        customerName:customer.name,
+        type:"workout",
+        icon:"🏋️",
+        title:"ยังไม่มี Workout",
+        detail:"ควรเริ่มกำหนดและติดตามการฝึก"
+      });
+    }else if(workoutGap>=7){
+      items.push({
+        customerId:customer.id,
+        customerName:customer.name,
+        type:"workout",
+        icon:"📉",
+        title:"ไม่ได้ Workout",
+        detail:`ไม่ได้บันทึกมา ${workoutGap} วัน`
+      });
+    }
+
+    if(checkinGap===null){
+      items.push({
+        customerId:customer.id,
+        customerName:customer.name,
+        type:"checkin",
+        icon:"📝",
+        title:"ยังไม่มี Check-in",
+        detail:"ยังไม่มีข้อมูลร่างกายหรือ Mood"
+      });
+    }else if(checkinGap>=7){
+      items.push({
+        customerId:customer.id,
+        customerName:customer.name,
+        type:"checkin",
+        icon:"⚠️",
+        title:"ไม่ได้ Check-in",
+        detail:`ไม่ได้อัปเดตมา ${checkinGap} วัน`
+      });
+    }
+  });
+
+  const priority={expired:0,soon:1,workout:2,checkin:3};
+  return items.sort((a,b)=>priority[a.type]-priority[b.type]).slice(0,8);
+}
+
 function trainerDashboardData(){
   const customers=asArray(S.data.customers);
   const totalCustomers=customers.length;
@@ -434,10 +538,12 @@ function trainerDashboardData(){
   const weeklyCompletion=Math.min(100,Math.round((weeklyLogs/weeklyTarget)*100));
   const recentActivities=dashboardRecentActivities(customers);
   const popularProgram=findMostUsedProgram(customers);
+  const followUps=trainerFollowUps(customers);
+  const templateCount=asArray(S.data.programTemplates).length;
   return {
     totalCustomers,totalPrograms,totalLogs,weeklyLogs,todayLogs,
     expiringSoon,expired,activePackages,unsetPackages,
-    weeklyTarget,weeklyCompletion,recentActivities,popularProgram
+    weeklyTarget,weeklyCompletion,recentActivities,popularProgram,followUps,templateCount
   };
 }
 
@@ -529,7 +635,7 @@ function renderTrainerDashboard(){
       <button class="quick-action" id="quickTemplates">
         <span class="emoji">📋</span>
         <b>Program Templates</b>
-        <span>เตรียมชุดโปรแกรมสำหรับใช้ซ้ำ</span>
+        <span>${d.templateCount} ชุดที่บันทึกไว้</span>
       </button>
       <button class="quick-action" id="quickLibrary">
         <span class="emoji">🏋️</span>
@@ -541,6 +647,26 @@ function renderTrainerDashboard(){
         <b>เพิ่มลูกเทรนใหม่</b>
         <span>เริ่มแพ็กเกจและสร้างรหัสสมาชิก</span>
       </button>
+    </div>
+
+    <div class="section-heading">
+      <h3>ต้องติดตาม</h3>
+      <span class="followup-count">${d.followUps.length}</span>
+    </div>
+
+    <div class="followup-list">
+      ${d.followUps.length?d.followUps.map(item=>`
+        <button class="followup-item followup-${item.type}" data-followup-customer="${item.customerId}">
+          <span class="followup-icon">${item.icon}</span>
+          <span class="followup-content">
+            <b>${esc(item.customerName)}</b>
+            <small>${esc(item.title)} · ${esc(item.detail)}</small>
+          </span>
+          <span class="followup-arrow">›</span>
+        </button>`).join(""):`<div class="followup-clear">
+          <span>✅</span>
+          <div><b>ไม่มีรายการเร่งด่วน</b><small>ลูกเทรนทุกคนอยู่ในสถานะปกติ</small></div>
+        </div>`}
     </div>
 
     <div class="section-heading">
@@ -627,6 +753,12 @@ function renderTrainerDashboard(){
     S.programTab="overview";
     renderFromTop();
   });
+  $$("[data-followup-customer]").forEach(button=>button.onclick=()=>{
+    S.customerId=button.dataset.followupCustomer;
+    S.screen="program";
+    S.programTab="overview";
+    renderFromTop();
+  });
 }
 
 function renderCustomers(){
@@ -700,31 +832,126 @@ function renderCustomers(){
 }
 
 function renderTemplatesPlaceholder(){
+  const templates=asArray(S.data.programTemplates);
+
   $("#app").innerHTML=`
     ${nav("templates")}
+
     <section class="hero-dashboard template-placeholder-hero">
       <div class="hero-eyebrow">📋 PROGRAM TEMPLATES</div>
       <h1 class="hero-title">ชุดโปรแกรมออกกำลังกาย</h1>
-      <p class="hero-subtitle">
-        หน้านี้พร้อมสำหรับเพิ่มระบบสร้างและบันทึกชุดโปรแกรมในเวอร์ชันถัดไป
-      </p>
+      <p class="hero-subtitle">สร้างชื่อและรายละเอียดของชุดโปรแกรมไว้ก่อน แล้วค่อยเพิ่มท่าในเวอร์ชันถัดไป</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" id="toggleTemplateForm">
+          ${S.showTemplateForm?"ปิดแบบฟอร์ม":"＋ สร้างชุดโปรแกรม"}
+        </button>
+      </div>
     </section>
 
-    <div class="card template-placeholder-card">
-      <div class="template-placeholder-icon">🧩</div>
-      <h3>Routing ทำงานแล้ว</h3>
-      <p class="small">
-        เวอร์ชันนี้เพิ่มเฉพาะเมนูและหน้าทดสอบ โดยยังไม่แก้โครงสร้างข้อมูลหรือ Firebase
-      </p>
-      <div class="template-checklist">
-        <span>✓ Dashboard เดิมไม่ถูกแก้</span>
-        <span>✓ ลูกเทรนและ Membership เดิมยังอยู่</span>
-        <span>✓ Exercise Library เดิมยังอยู่</span>
+    ${S.showTemplateForm?`
+      <div class="card template-form-card">
+        <h3>สร้างชุดโปรแกรมใหม่</h3>
+        <div class="grid2">
+          <label class="field-label">
+            ชื่อชุดโปรแกรม
+            <input class="input" id="templateName" placeholder="เช่น Full Body Beginner">
+          </label>
+          <label class="field-label">
+            หมวดหมู่
+            <select class="input" id="templateCategory">
+              <option>General</option>
+              <option>Strength</option>
+              <option>Hypertrophy</option>
+              <option>Fat Loss</option>
+              <option>Mobility</option>
+              <option>Beginner</option>
+              <option>Advanced</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="field-label" style="margin-top:10px">
+          รายละเอียด
+          <textarea class="input" id="templateDescription" rows="3" placeholder="อธิบายเป้าหมายหรือกลุ่มลูกเทรนที่เหมาะกับโปรแกรมนี้"></textarea>
+        </label>
+
+        <button class="btn btn-primary btn-block" id="saveTemplateBasic" style="margin-top:12px">
+          บันทึกชุดโปรแกรม
+        </button>
+      </div>`:""}
+
+    <div class="template-summary-row">
+      <div>
+        <b>${templates.length}</b>
+        <span>ชุดโปรแกรมที่บันทึกไว้</span>
       </div>
+      <span class="badge badge-accent">SYNCED</span>
+    </div>
+
+    <div class="template-basic-list">
+      ${templates.length?templates.map(template=>`
+        <div class="template-basic-card">
+          <div class="row-between">
+            <div style="min-width:0">
+              <span class="template-category">${esc(template.category)}</span>
+              <h3>${esc(template.name)}</h3>
+              <p>${esc(template.description||"ยังไม่มีรายละเอียด")}</p>
+            </div>
+            <button class="btn-danger" data-delete-basic-template="${template.id}">ลบ</button>
+          </div>
+          <div class="template-basic-footer">
+            <span>สร้างเมื่อ ${esc(template.createdAt||"-")}</span>
+            <span>0 ท่า</span>
+          </div>
+        </div>`).join(""):`
+        <div class="empty-state">
+          <span class="emoji">🗂️</span>
+          ยังไม่มีชุดโปรแกรม<br>
+          <span class="small">กด “สร้างชุดโปรแกรม” เพื่อเริ่มรายการแรก</span>
+        </div>`}
     </div>`;
 
   bindNav();
   window.scrollTo({top:0,behavior:"smooth"});
+
+  $("#toggleTemplateForm").onclick=()=>{
+    S.showTemplateForm=!S.showTemplateForm;
+    renderFromTop();
+  };
+
+  if($("#saveTemplateBasic"))$("#saveTemplateBasic").onclick=()=>{
+    const name=$("#templateName").value.trim();
+    const category=$("#templateCategory").value;
+    const description=$("#templateDescription").value.trim();
+
+    if(!name)return alert("กรุณากรอกชื่อชุดโปรแกรม");
+
+    S.data.programTemplates.push({
+      id:uid(),
+      name,
+      category,
+      description,
+      createdAt:isoToday()
+    });
+
+    S.showTemplateForm=false;
+    save();
+    showToast("บันทึกชุดโปรแกรมแล้ว");
+    renderFromTop();
+  };
+
+  $$("[data-delete-basic-template]").forEach(button=>button.onclick=()=>{
+    const template=templates.find(item=>String(item.id)===String(button.dataset.deleteBasicTemplate));
+    if(!template)return;
+    if(!confirm(`ลบชุดโปรแกรม "${template.name}" ใช่หรือไม่?`))return;
+
+    S.data.programTemplates=S.data.programTemplates.filter(
+      item=>String(item.id)!==String(template.id)
+    );
+    save();
+    showToast("ลบชุดโปรแกรมแล้ว");
+    renderFromTop();
+  });
 }
 
 function renderCatalog(){

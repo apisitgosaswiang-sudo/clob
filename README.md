@@ -1,16 +1,14 @@
-# Workout Tracker V2.3.3 Member Dashboard
+# Workout Tracker V2.3.5 Program Templates — Create & Save
 
 เพิ่ม:
-- คำทักทายตามช่วงเวลาในฝั่งลูกเทรน
-- แท็บ Dashboard / Today / Check-in
-- Workout สัปดาห์นี้
-- Workout สะสม
-- วันฝึกและจำนวนท่า
-- น้ำหนักล่าสุด
-- Weekly Goal
-- Body Snapshot
-- Mood ล่าสุด
-- Workout ล่าสุด
-- ปุ่มลัดไป Today และ Check-in
+- สร้างชื่อชุดโปรแกรม
+- เลือกหมวดหมู่
+- เพิ่มรายละเอียด
+- บันทึกลง Firebase
+- แสดงรายการที่บันทึกไว้
+- ลบชุดโปรแกรม
+- แสดงจำนวน Template บน Trainer Dashboard
 
+ยังไม่เพิ่มท่าออกกำลังกายใน Template
+ไม่เปลี่ยนระบบลูกเทรนหรือ Membership
 ตรวจ app.js ด้วย esbuild แล้วผ่าน
