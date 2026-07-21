@@ -1,0 +1,10 @@
+{
+  "module":"coachingPlan",
+  "version":"0.9.3A",
+  "screens":[
+    "Coaching Plan",
+    "Nutrition Target",
+    "Workout Target",
+    "Progress Timeline"
+  ]
+}

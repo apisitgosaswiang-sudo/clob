@@ -1,67 +1,41 @@
-# CLOB Alpha 0.9 — Pack 09 Part 2
+# CLOB Pack09-3A – Coaching Plan
 
-Weekly Check-in + Coach Review สำหรับระบบ Online Coaching
+This pack defines the Coaching Plan module.
 
-## Features
+Included:
+- Coaching Goal
+- Start / End Date
+- Current Phase
+- Current Week
+- Plan Status
+- Nutrition Targets
+- Workout Targets
+- Progress %
+- Coach Notes
+- Firebase structure proposal
 
-### Weekly Check-in
-- Week Start
-- Weight
-- Body Fat
-- Sleep
-- Stress
-- Energy
-- Hunger
-- Workout Adherence
-- Nutrition Adherence
-- Average Steps
-- Cardio Minutes
-- Wins This Week
-- Challenges
-- Question for Coach
+Firebase:
 
-### Coach Review
-- Coach Feedback
-- Goal for Next Week
-- Calories
-- Protein
-- Carbs
-- Fat
-- Training Adjustment
-- Mark as Reviewed
-- Review Status
-- Review preview ใน Timeline
-
-### Dashboard / Member Integration
-- เพิ่มแท็บ `Weekly` ใน Member Detail
-- Waiting Review card เปิดหน้า Weekly Check-in
-- Weekly Summary
-- Submitted / Reviewed / Average Score
-
-## Realtime Database Path
-
-```text
 clob/
   onlineCoaching/
     {memberCode}/
-      weeklyCheckins/
-        {checkinId}/
-      reviews/
-        {checkinId}/
-```
-
-## Install
-
-1. แตก ZIP
-2. อัปโหลดไฟล์ทั้งหมดทับ Pack09 Part 1
-3. Commit ไป GitHub
-4. รอ Vercel Deploy
-5. เข้า Members
-6. เลือกสมาชิก
-7. กดแท็บ `Weekly`
-
-## Pack09 Roadmap
-
-- Part 1: Dashboard + Dynamic Avatar + Notifications
-- Part 2: Weekly Check-in + Coach Review
-- Part 3: Coaching Plan + Adherence + Dashboard data
+      coachingPlan/
+        goal
+        startDate
+        endDate
+        phase
+        currentWeek
+        status
+        nutrition/
+          calories
+          protein
+          carbs
+          fat
+          fiber
+          water
+        workout/
+          split
+          weeklySessions
+          cardioMinutes
+          stepsGoal
+        coachNotes
