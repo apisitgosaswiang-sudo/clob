@@ -1,4 +1,4 @@
-window.__WORKOUT_APP_STARTED__ = true;
+window.__WORKOUT_BUILD__ = "2.3.1-repaired";
 import { auth, dataRef, get, set, signInAnonymously } from "./firebase.js";
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
@@ -641,7 +641,6 @@ function renderProgram(){
     </div>`}).join("")}
     <div class="row"><select class="input" data-select-day="${day.id}"><option value="">เลือกท่าจากคลัง</option>${catalogOptions()}<option value="__custom__">ท่ากำหนดเอง</option></select><button class="btn btn-primary" data-add-program-ex="${day.id}">เพิ่ม</button></div>
   </div>`).join("");
-  const latest=stats[stats.length-1]||{};
   const latest=stats[stats.length-1]||{};
   const weeklyCount=countThisWeekLogs(logs);
   const totalExercises=asArray(p.days).reduce((sum,day)=>sum+asArray(day.exercises).length,0);
