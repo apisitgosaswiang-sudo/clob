@@ -1,17 +1,13 @@
-# Workout Tracker V2.3.1
+# Workout Tracker V2.3.1 Fixed
 
-เวอร์ชันทดสอบแบบปลอดภัย
+แก้:
+- บังคับ Browser โหลด app.js และ style.css เวอร์ชันใหม่
+- ป้องกัน Cache เก่า
+- แสดงข้อความแจ้งแทนหน้าว่าง หากไฟล์ระบบโหลดไม่ครบ
 
-เพิ่มเฉพาะ:
-- เมนู Program Templates
-- หน้า Placeholder สำหรับตรวจสอบ Routing
-- รองรับเมนูแนวนอนบนมือถือ
-
-ยังไม่ได้เพิ่ม:
-- การสร้าง Template
-- การบันทึก Template
-- การแก้ Firebase
-- การ Assign Template ให้ลูกเทรน
-
-วิธี Deploy:
-อัปโหลด index.html, style.css, app.js, firebase.js และ README.md ทับไฟล์เดิมใน GitHub แล้ว Commit เข้า main
+อัปโหลดไฟล์ทั้ง 5 ตัวโดยชื่อไฟล์ต้องตรง:
+- index.html
+- style.css
+- app.js
+- firebase.js
+- README.md

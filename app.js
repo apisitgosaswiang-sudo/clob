@@ -1,3 +1,4 @@
+window.__WORKOUT_APP_STARTED__ = true;
 import { auth, dataRef, get, set, signInAnonymously } from "./firebase.js";
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
