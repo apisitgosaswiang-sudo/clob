@@ -1,16 +1,8 @@
 # Changelog
 
-## V2.4.1 Monthly Package Fix
-- เปลี่ยนแพ็กเกจลูกเทรนเป็นแบบรายเดือนเท่านั้น
-- นำจำนวนครั้งและจำนวนครั้งคงเหลือออกจากหน้าจอ
-- วันหมดอายุคำนวณจากวันเริ่มต้น + จำนวนเดือน
-- แก้การเปลี่ยนเมนูทุกหน้าให้เลื่อนกลับด้านบนทันที
-
-# Changelog
-
-## 2.4.1 — Tonight Setup Ready
-- ปรับเวอร์ชันสำหรับตั้งค่าข้อมูลจริง
-- จดจำ Trainer/Member login ใน session
-- เพิ่ม favicon แบบฝังในหน้าเว็บ
-- ปรับ cache-busting เป็น 2.4.1
-- คงข้อมูลและโครงสร้าง Firebase เดิม
+## Alpha 0.1
+- Firebase Anonymous Auth
+- Client CRUD
+- 192-exercise master library
+- Favorites and Recent
+- Mobile-first white UI

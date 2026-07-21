@@ -1,44 +1,72 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0B0B16">
-  <title>Workout Tracker</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2716%27 fill=%27%230b0b16%27/%3E%3Ccircle cx=%2732%27 cy=%2732%27 r=%2713%27 fill=%27%23ff573a%27/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./style.css?v=241-monthly-package-fix">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#F8F9FB">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>CLOB Alpha 0.1</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-  <div class="brand-wrap">
-    <span class="dot"></span>
-    <div style="min-width:0">
-      <div class="brand">Workout Tracker <span class="version-badge">V2.4.1 FIX</span></div>
-      <div class="subtitle">TRAIN • TRACK • PROGRESS</div>
-    </div>
+  <div id="loading" class="loading-screen">
+    <div class="loading-logo">CLOB</div>
+    <div class="spinner"></div>
+    <p id="loadingText">กำลังเชื่อมต่อ Firebase…</p>
   </div>
-  <div class="actions">
-    <span class="saving" id="saving">กำลังบันทึก...</span>
-    <button class="btn btn-pill btn-ghost" id="trainerBtn">เทรนเนอร์</button>
-    <button class="btn btn-pill btn-ghost" id="logoutBtn" hidden>ออกจากระบบ</button>
-  </div>
-</header>
 
-<main id="app"></main>
-<div class="toast" id="toast">บันทึกเรียบร้อยแล้ว</div>
+  <div class="app-shell" id="shell" hidden>
+    <header class="topbar">
+      <div>
+        <div class="brand">CLOB</div>
+        <div class="eyebrow" id="pageEyebrow">Coach workspace</div>
+      </div>
+      <div class="sync-pill" id="syncPill"><span></span><b>Online</b></div>
+    </header>
 
-<div class="modal" id="pinModal">
-  <div class="modal-box">
-    <h3>เข้าสู่ระบบเทรนเนอร์</h3>
-    <p class="small">กรอกรหัส 4 หลัก</p>
-    <input id="pinInput" class="input pin" maxlength="4" inputmode="numeric" placeholder="••••">
-    <p id="pinError" class="small error" hidden>รหัสไม่ถูกต้อง</p>
-    <div class="grid2" style="margin-top:14px">
-      <button class="btn" id="pinCancel">ยกเลิก</button>
-      <button class="btn btn-primary" id="pinConfirm">เข้าสู่ระบบ</button>
-    </div>
+    <main id="app"></main>
+
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-page="home"><span>⌂</span><small>Home</small></button>
+      <button class="nav-item" data-page="clients"><span>♙</span><small>Clients</small></button>
+      <button class="nav-item" data-page="programs"><span>▤</span><small>Programs</small></button>
+      <button class="nav-item" data-page="exercises"><span>◇</span><small>Exercises</small></button>
+      <button class="nav-item" data-page="settings"><span>⚙</span><small>Settings</small></button>
+    </nav>
   </div>
-</div>
-  <script type="module" src="./app.js?v=241-monthly-package-fix"></script>
+
+  <div class="modal-backdrop" id="modalBackdrop" hidden>
+    <section class="modal">
+      <div class="modal-head">
+        <div><div class="eyebrow">Client</div><h2 id="modalTitle">เพิ่มลูกค้า</h2></div>
+        <button class="icon-btn" id="closeModal">✕</button>
+      </div>
+      <form id="clientForm">
+        <input type="hidden" id="clientId">
+        <label>ชื่อเล่น / ชื่อลูกค้า<input id="clientName" required maxlength="60"></label>
+        <label>เบอร์โทร<input id="clientPhone" inputmode="tel" maxlength="30"></label>
+        <label>เป้าหมาย<textarea id="clientGoal" rows="3" maxlength="200"></textarea></label>
+        <div class="form-grid">
+          <label>วันเริ่มแพ็กเกจ<input id="packageStart" type="date"></label>
+          <label>จำนวนเดือน<input id="packageMonths" type="number" min="1" max="36" value="1"></label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="secondary-btn" id="cancelModal">ยกเลิก</button>
+          <button type="submit" class="primary-btn">บันทึก</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+  <script src="config.js"></script>
+  <script src="data/exercises.js"></script>
+  <script src="firebase.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

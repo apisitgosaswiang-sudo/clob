@@ -1,3 +1,10 @@
-export const APP_VERSION = "2.4.1";
-export const DB_VERSION = "2.4";
-export const RELEASE_NAME = "tonight-setup-ready";
+window.CLOB_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBNqoMN6VHh1OqShZ0LZL0mYCaH28orx-g",
+  authDomain: "online-trainer-c.firebaseapp.com",
+  databaseURL: "https://online-trainer-c-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "online-trainer-c",
+  storageBucket: "online-trainer-c.firebasestorage.app",
+  messagingSenderId: "93729536725",
+  appId: "1:93729536725:web:56efadd1a93563fe63805c",
+  measurementId: "G-1ZZBFHNS4R"
+};

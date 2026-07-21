@@ -1,24 +1,19 @@
-# วิธีอัปโหลดขึ้น GitHub ผ่านหน้าเว็บ
+# Upload Guide
 
-แพ็กเกจนี้จัดทุกไฟล์ไว้ที่โฟลเดอร์หลักแล้ว จึงไม่ต้องอัปโหลดโฟลเดอร์ `src`.
+## A. อัปโหลดโค้ด
+- เปิด https://github.com/apisitgosaswiang-sudo/clob
+- Add file → Upload files
+- ลากทุกไฟล์จากโฟลเดอร์นี้ รวมถึงโฟลเดอร์ `data`
+- Commit changes
 
-1. แตกไฟล์ ZIP
-2. เปิด Repository `TestS`
-3. เลือก **Add file → Upload files**
-4. เลือกไฟล์ทั้งหมดในโฟลเดอร์นี้ หรือกด `Ctrl + A` แล้วลากลงหน้า GitHub
-5. ตรวจสอบว่ามีไฟล์ต่อไปนี้ครบ
-   - `index.html`
-   - `style.css`
-   - `app.js`
-   - `firebase.js`
-   - `config.js`
-   - `customers.js`
-   - `README.md`
-   - `CHANGELOG.md`
-6. ใส่ข้อความ Commit เช่น `Release V2.4.0 customer foundation`
-7. กด **Commit changes**
-8. รอ Vercel Deploy แล้วรีเฟรชเว็บไซต์
+## B. ตั้ง Rules
+- Firebase Console → Realtime Database → Rules
+- Copy จาก `database.rules.json`
+- Publish
 
-## หมายเหตุ
-
-โครงสร้างยังแยกโค้ดเป็นโมดูล แต่เก็บไฟล์โมดูลไว้ที่ระดับหลักเพื่อให้ใช้งานกับ GitHub Web Upload ได้ง่าย.
+## C. ทดสอบ
+- เปิดเว็บ Vercel
+- ครั้งแรกระบบจะ Anonymous Login และ seed ท่า 192 ท่า
+- เพิ่ม Client 1 ราย
+- Reload หน้าเว็บ ตรวจว่าข้อมูลยังอยู่
+- เข้า Exercises ตรวจ Search, Favorite และ Recent

@@ -1,0 +1,24 @@
+{
+  "rules": {
+    "clob": {
+      "system": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      },
+      "exercise_master": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      },
+      "users": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    },
+    "workoutTrackerData": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}
