@@ -329,3 +329,45 @@ export async function saveMemberProfilePhoto(memberCode, payload) {
     return false;
   }
 }
+
+
+export async function saveMemberCheckin(memberCode, checkinId, payload) {
+  if (!firebaseReady || !database || !dbApi) return false;
+  try {
+    await dbApi.set(
+      dbApi.ref(database, `clob/progress/${memberCode}/checkins/${checkinId}`),
+      payload
+    );
+    return true;
+  } catch (error) {
+    console.warn("Could not save check-in:", error);
+    return false;
+  }
+}
+
+export async function getMemberCheckins(memberCode) {
+  if (!firebaseReady || !database || !dbApi) return null;
+  try {
+    const snapshot = await dbApi.get(
+      dbApi.ref(database, `clob/progress/${memberCode}/checkins`)
+    );
+    return snapshot.exists() ? snapshot.val() : null;
+  } catch (error) {
+    console.warn("Could not load check-ins:", error);
+    return null;
+  }
+}
+
+export async function deleteMemberCheckin(memberCode, checkinId) {
+  if (!firebaseReady || !database || !dbApi) return false;
+  try {
+    await dbApi.set(
+      dbApi.ref(database, `clob/progress/${memberCode}/checkins/${checkinId}`),
+      null
+    );
+    return true;
+  } catch (error) {
+    console.warn("Could not delete check-in:", error);
+    return false;
+  }
+}

@@ -123,7 +123,7 @@ function slotMarkup(slot) {
 
 function bind() {
   document.querySelector("#progress-back").addEventListener("click", () => {
-    navigate(`/member-detail-${member.code}`);
+    navigate(`/progress-${member.code}`);
   });
 
   document.querySelectorAll("[data-photo-slot]").forEach((button) => {

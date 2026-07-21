@@ -135,3 +135,18 @@ CLOB คือแพลตฟอร์มที่เชื่อม Trainer แ
 - Multi-photo upload confirmation
 - Upload progress and retry
 - Realtime Database metadata
+
+
+## Pack 08 Part 2 Completed
+
+- Progress dashboard per member
+- Check-in form
+- Weight and body fat
+- Skeletal muscle
+- Body measurements
+- Notes
+- Latest metric cards
+- Change calculations
+- Timeline
+- Edit and delete
+- Realtime Database and local fallback

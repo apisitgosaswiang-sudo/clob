@@ -12,6 +12,12 @@
           ".read": "$uid === auth.uid",
           ".write": "$uid === auth.uid"
         }
+      },
+      "progress": {
+        "$memberCode": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        }
       }
     }
   }
