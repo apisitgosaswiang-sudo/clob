@@ -1,4 +1,4 @@
-const CACHE_NAME = "clob-patch-005-member-pin";
+const CACHE_NAME = "clob-patch-006-reset-pin-fix";
 
 const APP_SHELL = [
   "./",

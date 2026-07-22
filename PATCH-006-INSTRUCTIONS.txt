@@ -1,0 +1,14 @@
+CLOB Patch-006 — Reset PIN Fix
+
+ไฟล์ที่แก้ไข:
+- js/members-page.js
+- sw.js
+
+วิธีติดตั้ง:
+1. นำไฟล์ทั้ง 2 ไฟล์ไปวางทับตำแหน่งเดิมในโปรเจกต์
+2. Commit และ Deploy ขึ้น Vercel
+3. ปิดและเปิด CLOB ใหม่ หากยังเห็นเวอร์ชันเก่า ให้รีเฟรชหน้าเว็บหนึ่งครั้ง
+
+สิ่งที่แก้:
+- เพิ่ม import ของ trainerResetMemberPin จาก member-security.js
+- เปลี่ยน Service Worker cache version เพื่อให้เครื่องรับ JavaScript เวอร์ชันใหม่
