@@ -52,6 +52,10 @@ export function renderTrainerSettingsPage() {
           </label>
 
           <button class="button button-primary" type="submit">Save Profile</button>
+          <div class="settings-compact-row">
+            <div><strong>Packages</strong><span>สร้างหรือปรับแพ็กเกจสำหรับสมาชิก</span></div>
+            <button id="open-packages" class="compact-action" type="button">จัดการ</button>
+          </div>
           <button id="open-beta-control" class="button button-secondary" type="button">Beta Control & Data Backup</button>
           <button id="trainer-home" class="button button-secondary" type="button">กลับหน้า Home หลัก</button>
           <button id="trainer-logout" class="button button-text" type="button">ออกจากระบบ Trainer</button>
@@ -71,6 +75,7 @@ export function renderTrainerSettingsPage() {
 
   document.querySelector("#settings-back").addEventListener("click", () => navigate("/trainer"));
 
+  document.querySelector("#open-packages").addEventListener("click", () => navigate("/packages"));
   document.querySelector("#open-beta-control").addEventListener("click", () => navigate("/beta-control"));
   document.querySelector("#trainer-home").addEventListener("click", () => navigate("/"));
   document.querySelector("#trainer-logout").addEventListener("click", () => {

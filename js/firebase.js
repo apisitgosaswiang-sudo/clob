@@ -616,3 +616,26 @@ export async function appendAuditLog(payload) {
     return false;
   }
 }
+
+
+export async function getPackages() {
+  if (!firebaseReady || !database || !dbApi) return null;
+  try {
+    const snapshot = await dbApi.get(dbApi.ref(database, "clob/packages"));
+    return snapshot.exists() ? snapshot.val() : null;
+  } catch (error) {
+    console.warn("Could not load packages:", error);
+    return null;
+  }
+}
+
+export async function savePackageRecord(packageId, payload) {
+  if (!firebaseReady || !database || !dbApi) return false;
+  try {
+    await dbApi.set(dbApi.ref(database, `clob/packages/${packageId}`), payload);
+    return true;
+  } catch (error) {
+    console.warn("Could not save package:", error);
+    return false;
+  }
+}

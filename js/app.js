@@ -25,6 +25,7 @@ import { renderBetaControlPage } from "./beta-control-page.js";
 import { renderAddMemberPage, renderEditMemberPage, renderPackagePage } from "./member-management-page.js";
 import { renderMemberProgressPage } from "./member-progress-page.js";
 import { renderMemberWeeklyUpdatePage } from "./member-weekly-update-page.js";
+import { renderPackageManagement } from "./package-management.js";
 
 registerRoute("/", renderLanding);
 registerRoute("/trainer-login", renderTrainerLogin);
@@ -37,6 +38,7 @@ registerRoute("/workout-complete", renderWorkoutComplete);
 registerRoute("/trainer", renderTrainerDashboardPage);
 registerRoute("/members", renderMembersPage);
 registerRoute("/programs", renderProgramsPage);
+registerRoute("/packages", renderPackageManagement);
 registerRoute("/library", renderExerciseLibraryPage);
 registerPatternRoute(/^\/workout-exercise-(\d+)$/, (index) => renderExerciseTracker(Number(index)));
 registerPatternRoute(/^\/member-edit-([^/]+)$/, renderEditMemberPage);
