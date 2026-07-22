@@ -1,4 +1,4 @@
-const CACHE_NAME = "clob-v1-rc2-20260722";
+const CACHE_NAME = "clob-rc3-stabilization";
 
 const APP_SHELL = [
   "./",
@@ -24,6 +24,7 @@ const APP_SHELL = [
   "./js/member-experience.js",
   "./js/workout.js",
   "./js/programs.js",
+  "./js/data-normalizer.js",
   "./js/program-builder.js",
   "./js/exercise-library.js",
   "./js/exercise-library-page.js",
