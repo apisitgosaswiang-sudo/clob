@@ -1,0 +1,14 @@
+CLOB Nutrition Patch N-001
+
+Type: Design baseline only
+Production code changed: No
+Database changed: No
+
+Included file:
+- docs/NUTRITION-MODULE-V1-SPEC.md
+
+Install:
+1. Copy the docs folder into the project root.
+2. Review the specification before beginning Patch N-002.
+
+This patch intentionally does not modify JavaScript, CSS, Firebase Rules, Service Worker, or current user flows.
