@@ -23,58 +23,7 @@ const EXERCISE_LIBRARY = [
   { id: "face-pull", name: "Face Pull", category: "Pull", equipment: "Cable" }
 ];
 
-const DEMO_PROGRAMS = {
-  "program-upper-lower": {
-    id: "program-upper-lower",
-    name: "Upper / Lower 4 Days",
-    goal: "Strength & Muscle",
-    level: "Intermediate",
-    status: "active",
-    createdAt: Date.now() - 1000 * 60 * 60 * 24 * 8,
-    updatedAt: Date.now() - 1000 * 60 * 60 * 3,
-    days: [
-      {
-        id: "day-1",
-        name: "Day 1 — Upper A",
-        exercises: [
-          makeExercise("db-bench-press", 3, "8-10", 10, 8, 90, "คุมช่วงลง 2 วินาที"),
-          makeExercise("seated-cable-row", 3, "10-12", 25, 8, 75, "บีบสะบักท้ายจังหวะ"),
-          makeExercise("shoulder-press", 3, "10", 8, 8, 75, "")
-        ]
-      },
-      {
-        id: "day-2",
-        name: "Day 2 — Lower A",
-        exercises: [
-          makeExercise("goblet-squat", 4, "10", 14, 8, 90, ""),
-          makeExercise("db-rdl", 3, "10", 16, 8, 90, ""),
-          makeExercise("walking-lunge", 3, "12/ข้าง", 0, 8, 75, "")
-        ]
-      }
-    ]
-  },
-  "program-beginner-fullbody": {
-    id: "program-beginner-fullbody",
-    name: "Beginner Full Body",
-    goal: "General Fitness",
-    level: "Beginner",
-    status: "draft",
-    createdAt: Date.now() - 1000 * 60 * 60 * 24 * 2,
-    updatedAt: Date.now() - 1000 * 60 * 50,
-    days: [
-      {
-        id: "day-1",
-        name: "Day 1 — Full Body",
-        exercises: [
-          makeExercise("goblet-squat", 3, "10", 8, 7, 90, ""),
-          makeExercise("push-up", 3, "8-12", 0, 7, 75, ""),
-          makeExercise("seated-cable-row", 3, "12", 20, 7, 75, ""),
-          makeExercise("dead-bug", 3, "10/ข้าง", 0, 7, 60, "")
-        ]
-      }
-    ]
-  }
-};
+let exerciseLibraryCache = [...EXERCISE_LIBRARY];
 
 function makeExercise(id, sets, reps, weight, rpe, rest, notes) {
   const base = EXERCISE_LIBRARY.find((item) => item.id === id);
@@ -95,7 +44,8 @@ function makeExercise(id, sets, reps, weight, rpe, rest, notes) {
 
 export async function getExerciseLibrary() {
   const library = await loadExerciseLibrary();
-  return library.length ? library : EXERCISE_LIBRARY;
+  exerciseLibraryCache = library.length ? library : EXERCISE_LIBRARY;
+  return exerciseLibraryCache;
 }
 
 export async function loadPrograms() {
@@ -106,10 +56,7 @@ export async function loadPrograms() {
   }
 
   const local = loadProgramsLocal();
-  if (Object.keys(local).length) return Object.values(local);
-
-  saveProgramsLocal(DEMO_PROGRAMS);
-  return Object.values(DEMO_PROGRAMS);
+  return Object.values(local);
 }
 
 export function createBlankProgram() {
@@ -212,7 +159,7 @@ export function removeDay(program, dayId) {
 
 export function addExercise(program, dayId, exerciseId) {
   const day = program.days.find((item) => item.id === dayId);
-  const base = EXERCISE_LIBRARY.find((item) => item.id === exerciseId);
+  const base = exerciseLibraryCache.find((item) => item.id === exerciseId) || EXERCISE_LIBRARY.find((item) => item.id === exerciseId);
   if (!day || !base) return program;
 
   day.exercises.push({

@@ -24,11 +24,13 @@ import { renderMemberProfilePage } from "./member-profile-page.js";
 import { renderBetaControlPage } from "./beta-control-page.js";
 import { renderAddMemberPage, renderEditMemberPage, renderPackagePage } from "./member-management-page.js";
 import { renderMemberProgressPage } from "./member-progress-page.js";
+import { renderMemberWeeklyUpdatePage } from "./member-weekly-update-page.js";
 
 registerRoute("/", renderLanding);
 registerRoute("/trainer-login", renderTrainerLogin);
 registerRoute("/member", renderMemberTodayPage);
 registerRoute("/member-profile", renderMemberProfilePage);
+registerRoute("/member-weekly", renderMemberWeeklyUpdatePage);
 registerRoute("/beta-control", renderBetaControlPage);
 registerRoute("/workout", renderWorkoutOverview);
 registerRoute("/workout-complete", renderWorkoutComplete);
@@ -94,8 +96,12 @@ registerRoute("/404", () => {
   renderNotFound();
 });
 
-startRouter();
-initializeFirebase();
+async function bootstrap() {
+  await initializeFirebase();
+  startRouter();
+}
+
+bootstrap();
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

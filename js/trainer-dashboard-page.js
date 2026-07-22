@@ -86,6 +86,14 @@ function render() {
         <section class="notification-list">
           ${notificationMarkup()}
         </section>
+
+        <nav class="bottom-nav trainer-bottom-nav" aria-label="เมนูเทรนเนอร์">
+          <button class="nav-item is-active" data-trainer-route="/trainer"><span>⌂</span><small>Dashboard</small></button>
+          <button class="nav-item" data-trainer-route="/members"><span>👥</span><small>Members</small></button>
+          <button class="nav-item" data-trainer-route="/programs"><span>▤</span><small>Programs</small></button>
+          <button class="nav-item" data-trainer-route="/library"><span>✦</span><small>Library</small></button>
+          <button class="nav-item" data-trainer-route="/trainer-settings"><span>⚙</span><small>Settings</small></button>
+        </nav>
       </div>
     </main>
   `;
@@ -161,6 +169,10 @@ function notificationMarkup() {
 }
 
 function bind() {
+  document.querySelectorAll("[data-trainer-route]").forEach((button) => {
+    button.addEventListener("click", () => navigate(button.dataset.trainerRoute));
+  });
+
   document.querySelector("#trainer-profile-button").addEventListener("click", () => {
     navigate("/trainer-settings");
   });

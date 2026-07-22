@@ -49,7 +49,12 @@ export async function renderProgramsPage() {
     return;
   }
 
-  programsCache = await loadPrograms();
+  try {
+    programsCache = await loadPrograms();
+  } catch (error) {
+    console.error("Programs failed to load:", error);
+    programsCache = [];
+  }
 
   page(`
     <div class="programs-screen">
@@ -122,7 +127,7 @@ function programListMarkup(programs) {
         <div>
           <h3>${escapeHtml(program.name)}</h3>
           <p>${escapeHtml(program.goal)} · ${escapeHtml(program.level)}</p>
-          <span>${program.days.length} Days · ${countProgramExercises(program)} Exercises</span>
+          <span>${Array.isArray(program.days) ? program.days.length : 0} Days · ${countProgramExercises(program)} Exercises</span>
         </div>
       </button>
       <div class="program-card-footer">

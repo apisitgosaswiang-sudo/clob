@@ -53,7 +53,16 @@ export function renderTrainerSettingsPage() {
 
           <button class="button button-primary" type="submit">Save Profile</button>
           <button id="open-beta-control" class="button button-secondary" type="button">Beta Control & Data Backup</button>
+          <button id="trainer-home" class="button button-secondary" type="button">กลับหน้า Home หลัก</button>
+          <button id="trainer-logout" class="button button-text" type="button">ออกจากระบบ Trainer</button>
         </form>
+        <nav class="bottom-nav trainer-bottom-nav" aria-label="เมนูเทรนเนอร์">
+          <button class="nav-item" data-route="/trainer"><span>⌂</span><small>Dashboard</small></button>
+          <button class="nav-item" data-route="/members"><span>👥</span><small>Members</small></button>
+          <button class="nav-item" data-route="/programs"><span>▤</span><small>Programs</small></button>
+          <button class="nav-item" data-route="/library"><span>✦</span><small>Library</small></button>
+          <button class="nav-item is-active" data-route="/trainer-settings"><span>⚙</span><small>Settings</small></button>
+        </nav>
 
         <div id="settings-toast" class="toast" hidden></div>
       </div>
@@ -63,6 +72,14 @@ export function renderTrainerSettingsPage() {
   document.querySelector("#settings-back").addEventListener("click", () => navigate("/trainer"));
 
   document.querySelector("#open-beta-control").addEventListener("click", () => navigate("/beta-control"));
+  document.querySelector("#trainer-home").addEventListener("click", () => navigate("/"));
+  document.querySelector("#trainer-logout").addEventListener("click", () => {
+    sessionStorage.removeItem("clob_trainer");
+    navigate("/");
+  });
+  document.querySelectorAll("[data-route]").forEach((button) => {
+    button.addEventListener("click", () => navigate(button.dataset.route));
+  });
 
   document.querySelector("#trainer-profile-form").addEventListener("submit", (event) => {
     event.preventDefault();

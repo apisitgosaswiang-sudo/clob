@@ -175,7 +175,7 @@ function bind() {
   });
 
   document.querySelector("#weekly-link").addEventListener("click", () => {
-    toast("Weekly check-in is reviewed by your coach.");
+    navigate("/member-weekly");
   });
 
   document.querySelector("#progress-link").addEventListener("click", () => {

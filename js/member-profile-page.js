@@ -36,6 +36,8 @@ export async function renderMemberProfilePage() {
           </div>
         </section>
 
+        <button id="change-profile-photo" class="button button-secondary">เพิ่มหรือเปลี่ยนรูปส่วนตัว</button>
+
         <section class="member-profile-info card">
           <div><span>Coach</span><strong>${escapeHtml(member.coachName)}</strong></div>
           <div><span>Package remaining</span><strong>${Number(member.package.daysLeft || 0)} days</strong></div>
@@ -58,6 +60,7 @@ export async function renderMemberProfilePage() {
   `;
 
   document.querySelector("#profile-back").addEventListener("click", () => navigate("/member"));
+  document.querySelector("#change-profile-photo").addEventListener("click", () => navigate(`/progress-photos-${code}`));
   document.querySelector("#member-logout").addEventListener("click", () => {
     sessionStorage.removeItem("clob_member_code");
     navigate("/");
