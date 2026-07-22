@@ -1,4 +1,4 @@
-const CACHE_NAME = "clob-rc5-package-management";
+const CACHE_NAME = "clob-patch-002-exercise-library";
 
 const APP_SHELL = [
   "./",
