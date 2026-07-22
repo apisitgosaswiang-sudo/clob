@@ -4248,3 +4248,79 @@ svg {
     height: calc(100dvh - 48px);
   }
 }
+
+/* Patch-007: Coach ID + Security PIN and coach profile photo */
+#coach-id-step,
+#coach-pin-step {
+  display: grid;
+  gap: 12px;
+}
+
+.coach-login-identity {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #FAFAFA;
+}
+
+.coach-login-identity > span {
+  color: var(--muted);
+  font-size: .62rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.coach-login-identity > strong {
+  grid-row: 2;
+  font-size: .92rem;
+}
+
+.coach-login-identity .button-text {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-height: auto;
+  padding: 6px;
+  font-size: .62rem;
+}
+
+.coach-photo-button {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.coach-photo-edit {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border: 3px solid white;
+  border-radius: 50%;
+  color: white;
+  background: #18181B;
+  font-size: .65rem;
+  font-weight: 850;
+}
+
+.profile-photo-link {
+  margin-top: 7px;
+  padding: 0;
+  border: 0;
+  color: var(--primary);
+  background: transparent;
+  font-size: .64rem;
+  font-weight: 800;
+  text-align: left;
+}
