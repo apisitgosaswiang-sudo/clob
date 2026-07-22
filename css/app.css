@@ -4168,3 +4168,83 @@
 }
 
 .member-form-screen{min-height:100dvh;padding:max(22px,env(safe-area-inset-top)) 18px 50px}.member-form-header{display:grid;grid-template-columns:42px 1fr;gap:10px;align-items:center}.member-editor{margin-top:18px;padding:16px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.member-editor label span{display:block;margin-bottom:6px;color:var(--muted);font-size:.6rem}.member-editor input,.member-editor select,.member-editor textarea{width:100%;min-height:44px;padding:10px;border:1px solid var(--line);border-radius:11px}.form-wide{display:block;margin:12px 0}.monthly-package-note{margin-top:18px;padding:15px}.package-features{display:grid;gap:8px;margin:14px 0;padding:12px;border:1px solid var(--line);border-radius:12px}.member-progress-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:14px 0}.member-timeline-card{padding:15px}.member-progress-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}.member-progress-row span{display:block;color:var(--muted);font-size:.56rem}.member-workout-nav{position:sticky;bottom:0;margin:20px -18px -18px}.workout-screen,.exercise-tracker-screen{padding-bottom:100px}.trainer-photo-history{display:grid;gap:12px}.trainer-photo-set{padding:12px}.progress-photo-grid.readonly{grid-template-columns:repeat(3,1fr)}.readonly-photo{margin:0;text-align:center}.readonly-photo img,.photo-missing{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:12px;background:#f4f4f5}.photo-missing{display:grid;place-items:center}.readonly-photo figcaption{font-size:.55rem;color:var(--muted)}.photo-readonly-empty{padding:25px;text-align:center}@media(max-width:520px){.form-grid{grid-template-columns:1fr}}
+
+
+/* Patch-003: app-like mobile viewport and touch behavior */
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-shell {
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scrollbar-width: none;
+}
+
+.app-shell::-webkit-scrollbar {
+  display: none;
+}
+
+button,
+a,
+[role="button"],
+summary,
+label {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+button:active,
+a:active,
+[role="button"]:active {
+  transform: scale(.985);
+}
+
+input,
+textarea,
+select,
+[contenteditable="true"] {
+  font-size: 16px;
+  touch-action: manipulation;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+*:not(input):not(textarea):not(select):not([contenteditable="true"]) {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+img,
+svg {
+  -webkit-user-drag: none;
+}
+
+@media (min-width: 720px) {
+  body {
+    position: static;
+    height: auto;
+    overflow: auto;
+  }
+
+  .app-shell {
+    height: calc(100dvh - 48px);
+  }
+}
