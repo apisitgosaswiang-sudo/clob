@@ -168,7 +168,7 @@ export async function renderMembersPage() {
           <span>✦</span>
           <small>Library</small>
         </button>
-        <button class="nav-item" data-coming="Settings จะเพิ่มใน Pack ถัดไป">
+        <button class="nav-item" data-route="/trainer-settings">
           <span>⚙</span>
           <small>Settings</small>
         </button>
@@ -213,15 +213,11 @@ export async function renderMembersPage() {
   });
 
   document.querySelector("#add-member-button").addEventListener("click", () => {
-    toast("ฟอร์มเพิ่มสมาชิกจะมาใน Pack 05 Part 2");
+    navigate("/member-add");
   });
 
   document.querySelectorAll("[data-route]").forEach((button) => {
     button.addEventListener("click", () => navigate(button.dataset.route));
-  });
-
-  document.querySelectorAll("[data-coming]").forEach((button) => {
-    button.addEventListener("click", () => toast(button.dataset.coming));
   });
 }
 
@@ -242,10 +238,7 @@ export async function renderMemberDetail(code) {
   }
 
   const pkgStatus = packageStatus(member);
-  const usedSessions = Math.max(member.totalSessions - member.sessionsLeft, 0);
-  const sessionProgress = member.totalSessions
-    ? Math.round((usedSessions / member.totalSessions) * 100)
-    : 0;
+  const packageProgress = member.packageDaysLeft > 0 ? Math.min(100, Math.round((30-member.packageDaysLeft)/30*100)) : 100;
 
   page(`
     <div class="member-detail-screen">
@@ -307,9 +300,9 @@ export async function renderMemberDetail(code) {
         </div>
 
         <div class="package-progress-track">
-          <div style="width:${sessionProgress}%"></div>
+          <div style="width:${packageProgress}%"></div>
         </div>
-        <small>ใช้แล้ว ${usedSessions} จาก ${member.totalSessions} Sessions</small>
+        <small>Online Coaching รายเดือน · ${member.packageRenewal === "auto" ? "Auto renew" : "Manual renew"}</small>
       </section>
 
       <section class="detail-card card">
@@ -335,11 +328,11 @@ export async function renderMemberDetail(code) {
   };
 
   document.querySelector("#member-detail-back").addEventListener("click", () => navigate("/members"));
-  document.querySelector("#edit-member").addEventListener("click", () => toast("หน้าแก้ไขสมาชิกจะมาใน Pack 05 Part 2"));
+  document.querySelector("#edit-member").addEventListener("click", () => navigate(`/member-edit-${member.code}`));
   document.querySelector("#weekly-checkin-tab").addEventListener("click", () => navigate(`/weekly-checkins-${member.code}`));
   document.querySelector("#progress-tab").addEventListener("click", () => navigate(`/progress-${member.code}`));
   document.querySelector("#progress-photo-tab").addEventListener("click", () => navigate(`/progress-photos-${member.code}`));
   document.querySelector("#history-tab").addEventListener("click", () => toast("Workout History แบบเต็มจะมาใน Pack 05 Part 2"));
-  document.querySelector("#package-tab").addEventListener("click", () => toast("Package Management จะมาใน Pack 05 Part 2"));
+  document.querySelector("#package-tab").addEventListener("click", () => navigate(`/member-package-${member.code}`));
   document.querySelector("#view-history").addEventListener("click", () => toast("Workout History แบบเต็มจะมาใน Pack 05 Part 2"));
 }

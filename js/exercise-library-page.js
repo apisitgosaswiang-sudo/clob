@@ -100,7 +100,7 @@ function renderLibrary() {
         <button class="nav-item" data-route="/members"><span>👥</span><small>Members</small></button>
         <button class="nav-item" data-route="/programs"><span>▤</span><small>Programs</small></button>
         <button class="nav-item is-active" data-route="/library"><span>✦</span><small>Library</small></button>
-        <button class="nav-item" data-coming><span>⚙</span><small>Settings</small></button>
+        <button class="nav-item" data-route="/trainer-settings"><span>⚙</span><small>Settings</small></button>
       </nav>
     </div>
   `);
@@ -175,7 +175,7 @@ function bindLibrary() {
     button.addEventListener("click", () => navigate(button.dataset.route));
   });
 
-  document.querySelector("[data-coming]").addEventListener("click", () => toast("Coming soon"));
+  
 }
 
 function refreshGrid() {

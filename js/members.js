@@ -1,4 +1,4 @@
-import { getAllMembers, getWorkoutSessions } from "./firebase.js";
+import { getAllMembers, getWorkoutSessions, saveMemberRecord, memberCodeExists } from "./firebase.js";
 
 const DEMO_MEMBERS = {
   "12345": {
@@ -91,13 +91,48 @@ const DEMO_MEMBERS = {
   }
 };
 
-export async function loadMembers() {
-  const [remoteMembers, remoteSessions] = await Promise.all([
-    getAllMembers(),
-    getWorkoutSessions()
-  ]);
+const LOCAL_MEMBERS_KEY = "clob_hotfix_members_overlay";
 
-  return normalizeMembers(remoteMembers || DEMO_MEMBERS, remoteSessions);
+function getLocalMembers() {
+  try { return JSON.parse(localStorage.getItem(LOCAL_MEMBERS_KEY) || "{}"); }
+  catch { return {}; }
+}
+
+function saveLocalMember(code, payload) {
+  const current = getLocalMembers();
+  current[code] = {
+    ...(current[code] || {}),
+    ...payload,
+    package: { ...(current[code]?.package || {}), ...(payload.package || {}) }
+  };
+  localStorage.setItem(LOCAL_MEMBERS_KEY, JSON.stringify(current));
+}
+
+export async function loadMembers() {
+  const [remoteMembers, remoteSessions] = await Promise.all([getAllMembers(), getWorkoutSessions()]);
+  const merged = { ...(remoteMembers || DEMO_MEMBERS) };
+  Object.entries(getLocalMembers()).forEach(([code, payload]) => {
+    merged[code] = { ...(merged[code] || {}), ...payload, package: { ...(merged[code]?.package || {}), ...(payload.package || {}) } };
+  });
+  return normalizeMembers(merged, remoteSessions);
+}
+
+export async function saveMember(member, { isNew = false } = {}) {
+  const code = String(member.code || "").replace(/\D/g, "").slice(0, 5);
+  if (code.length !== 5) throw new Error("รหัสสมาชิกต้องมี 5 หลัก");
+  if (isNew && (getLocalMembers()[code] || await memberCodeExists(code))) throw new Error("รหัสสมาชิกนี้ถูกใช้งานแล้ว");
+  const payload = {
+    name: member.name || "Member", phone: member.phone || "-", gender: member.gender || "-",
+    age: member.age === "" ? "-" : member.age, height: member.height === "" ? "-" : member.height,
+    weight: member.weight === "" ? "-" : member.weight, goal: member.goal || "-", status: member.status || "active",
+    joinedAt: member.joinedAt || new Date().toISOString().slice(0,10),
+    package: {
+      name: member.package?.name || "Online Coaching Monthly", startDate: member.package?.startDate || "", endDate: member.package?.endDate || "",
+      billingCycle: "monthly", price: Number(member.package?.price || 0), renewal: member.package?.renewal || "manual",
+      status: member.package?.status || "active", features: member.package?.features || { program:true, weeklyCheckin:true, habitTracking:true, coachReview:true }
+    }, updatedAt: Date.now()
+  };
+  saveLocalMember(code,payload); await saveMemberRecord(code,payload); return { code, ...payload };
 }
 
 function normalizeMembers(source, sessions) {
@@ -119,14 +154,23 @@ function normalizeMembers(source, sessions) {
       packageName: pkg.name || "No Package",
       packageStartDate: pkg.startDate || "-",
       packageEndDate: pkg.endDate || "-",
-      packageDaysLeft: Number(pkg.daysLeft || 0),
-      sessionsLeft: Number(pkg.sessionsLeft || 0),
-      totalSessions: Number(pkg.totalSessions || 0),
+      packageDaysLeft: calculateDaysLeft(pkg.endDate, pkg.daysLeft),
+      packagePrice: Number(pkg.price || 0),
+      packageBillingCycle: pkg.billingCycle || "monthly",
+      packageRenewal: pkg.renewal || "manual",
+      packageStatus: pkg.status || "active",
+      packageFeatures: pkg.features || {},
       workoutStatus: latestSession?.status || member.lastWorkoutStatus || "not_started",
       workoutTitle: latestSession?.title || member.lastWorkoutTitle || "ยังไม่มีโปรแกรม",
       workoutUpdatedAt: latestSession?.updatedAt || member.lastWorkoutUpdatedAt || 0
     };
   });
+}
+
+function calculateDaysLeft(endDate, legacyDaysLeft = 0) {
+  if (!endDate) return Number(legacyDaysLeft || 0);
+  const end = new Date(`${endDate}T23:59:59`);
+  return Number.isNaN(end.getTime()) ? Number(legacyDaysLeft || 0) : Math.max(0, Math.ceil((end.getTime()-Date.now())/86400000));
 }
 
 function getLatestSession(code, sessions) {

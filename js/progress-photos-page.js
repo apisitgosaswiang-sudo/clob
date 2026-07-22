@@ -1,6 +1,6 @@
 import { navigate } from "./router.js";
 import { loadMembers, getMemberByCode } from "./members.js";
-import { uploadImage, saveProgressPhotoSet, saveMemberProfilePhoto } from "./firebase.js";
+import { uploadImage, saveProgressPhotoSet, saveMemberProfilePhoto, getProgressPhotoSets } from "./firebase.js";
 import { createImageCropper } from "./image-processor.js";
 
 const app = document.querySelector("#app");
@@ -10,6 +10,8 @@ let pending = {};
 let activeSlot = null;
 let activeFile = null;
 let cropper = null;
+let isTrainerView = false;
+let savedPhotoSets = {};
 
 function esc(value = "") {
   return String(value)
@@ -33,10 +35,10 @@ function createId() {
 }
 
 export async function renderProgressPhotosPage(code) {
-  if (sessionStorage.getItem("clob_trainer") !== "true") {
-    navigate("/trainer-login");
-    return;
-  }
+  const trainerLoggedIn = sessionStorage.getItem("clob_trainer") === "true";
+  const memberCode = sessionStorage.getItem("clob_member_code");
+  isTrainerView = trainerLoggedIn;
+  if (!trainerLoggedIn && memberCode !== code) { navigate("/"); return; }
 
   const members = await loadMembers();
   member = getMemberByCode(members, code);
@@ -46,6 +48,7 @@ export async function renderProgressPhotosPage(code) {
   }
 
   pending = {};
+  savedPhotoSets = await getProgressPhotoSets(code) || {};
   render();
 }
 
@@ -72,29 +75,21 @@ function render() {
             <strong>${esc(member.name)}</strong>
             <span>${esc(member.code)}</span>
           </div>
-          <button id="profile-photo-button">Profile Photo</button>
+          ${isTrainerView ? "" : `<button id="profile-photo-button">Profile Photo</button>`}
         </section>
 
         <section class="progress-photo-intro">
           <h2>Progress Photos</h2>
-          <p>Select, crop, then confirm. Upload starts only after Save Photos.</p>
+          <p>${isTrainerView ? "ดูรูปที่สมาชิกอัปโหลดมาแบบ Read-only" : "Select, crop, then confirm. Upload starts only after Save Photos."}</p>
         </section>
 
-        <section class="progress-photo-grid">
-          ${slots.map((slot) => slotMarkup(slot)).join("")}
-        </section>
+        ${isTrainerView ? trainerGalleryMarkup() : `<section class="progress-photo-grid">${slots.map((slot) => slotMarkup(slot)).join("")}</section>`}
 
-        <section class="photo-privacy card">
-          <span>Private</span>
-          <p>Photos require Firebase sign-in.</p>
-        </section>
+        ${isTrainerView ? "" : `<section class="photo-privacy card"><span>Private</span><p>สมาชิกเป็นผู้จัดการรูปของตนเอง</p></section>`}
 
-        <button id="save-photos" class="button button-primary progress-save"
-          ${Object.keys(pending).length ? "" : "disabled"}>
-          Save Photos
-        </button>
+        ${isTrainerView ? "" : `<button id="save-photos" class="button button-primary progress-save" ${Object.keys(pending).length ? "" : "disabled"}>Save Photos</button>`}
 
-        <input id="progress-file-input" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+        ${isTrainerView ? "" : `<input id="progress-file-input" type="file" accept="image/jpeg,image/png,image/webp" hidden>`}
         <div id="crop-modal" class="builder-modal" hidden></div>
         <div id="upload-modal" class="builder-modal" hidden></div>
         <div id="progress-toast" class="toast" hidden></div>
@@ -103,6 +98,12 @@ function render() {
   `;
 
   bind();
+}
+
+function trainerGalleryMarkup() {
+  const sets = Object.values(savedPhotoSets || {}).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
+  if (!sets.length) return `<section class="photo-readonly-empty card"><strong>สมาชิกยังไม่ได้อัปโหลดรูป</strong><p>เมื่อสมาชิกบันทึกรูปแล้ว รูปจะปรากฏที่นี่</p></section>`;
+  return `<section class="trainer-photo-history">${sets.map(set=>`<article class="trainer-photo-set card"><strong>${new Date(set.createdAt||Date.now()).toLocaleDateString("th-TH")}</strong><div class="progress-photo-grid readonly">${slots.map(slot=>{const x=set.photos?.[slot];return `<figure class="readonly-photo">${x?.url?`<a href="${esc(x.url)}" target="_blank"><img src="${esc(x.url)}" alt="${slot}"></a>`:`<div class="photo-missing">${slot}</div>`}<figcaption>${slot}</figcaption></figure>`;}).join("")}</div></article>`).join("")}</section>`;
 }
 
 function slotMarkup(slot) {
@@ -122,9 +123,8 @@ function slotMarkup(slot) {
 }
 
 function bind() {
-  document.querySelector("#progress-back").addEventListener("click", () => {
-    navigate(`/progress-${member.code}`);
-  });
+  document.querySelector("#progress-back").addEventListener("click", () => { navigate(isTrainerView ? `/progress-${member.code}` : `/member-progress-${member.code}`); });
+  if (isTrainerView) return;
 
   document.querySelectorAll("[data-photo-slot]").forEach((button) => {
     button.addEventListener("click", () => chooseFile(button.dataset.photoSlot));

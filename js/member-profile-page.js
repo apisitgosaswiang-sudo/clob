@@ -39,7 +39,7 @@ export async function renderMemberProfilePage() {
         <section class="member-profile-info card">
           <div><span>Coach</span><strong>${escapeHtml(member.coachName)}</strong></div>
           <div><span>Package remaining</span><strong>${Number(member.package.daysLeft || 0)} days</strong></div>
-          <div><span>Sessions remaining</span><strong>${Number(member.package.sessionsLeft || 0)}</strong></div>
+          <div><span>Billing cycle</span><strong>Monthly</strong></div>
         </section>
 
         <section class="beta-privacy-card card">

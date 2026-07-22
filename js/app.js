@@ -22,6 +22,8 @@ import { renderWeeklyCheckinPage } from "./weekly-checkin-page.js";
 import { renderMemberTodayPage } from "./member-today-page.js";
 import { renderMemberProfilePage } from "./member-profile-page.js";
 import { renderBetaControlPage } from "./beta-control-page.js";
+import { renderAddMemberPage, renderEditMemberPage, renderPackagePage } from "./member-management-page.js";
+import { renderMemberProgressPage } from "./member-progress-page.js";
 
 registerRoute("/", renderLanding);
 registerRoute("/trainer-login", renderTrainerLogin);
@@ -30,7 +32,7 @@ registerRoute("/member-profile", renderMemberProfilePage);
 registerRoute("/beta-control", renderBetaControlPage);
 registerRoute("/workout", renderWorkoutOverview);
 registerRoute("/workout-complete", renderWorkoutComplete);
-registerRoute("/trainer", renderTrainerDashboard);
+registerRoute("/trainer", renderTrainerDashboardPage);
 registerRoute("/members", renderMembersPage);
 registerRoute("/programs", renderProgramsPage);
 registerRoute("/library", renderExerciseLibraryPage);
@@ -42,6 +44,17 @@ registerRoute("/404", () => {
     renderExerciseTracker(Number(workoutMatch[1]));
     return;
   }
+
+  if (path === "/member-add") { renderAddMemberPage(); return; }
+
+  const editMatch = path.match(/^\/member-edit-(\d{5})$/);
+  if (editMatch) { renderEditMemberPage(editMatch[1]); return; }
+
+  const pkgMatch = path.match(/^\/member-package-(\d{5})$/);
+  if (pkgMatch) { renderPackagePage(pkgMatch[1]); return; }
+
+  const mpMatch = path.match(/^\/member-progress-(\d{5})$/);
+  if (mpMatch) { renderMemberProgressPage(mpMatch[1]); return; }
 
   const memberMatch = path.match(/^\/member-detail-(\d{5})$/);
   if (memberMatch) {

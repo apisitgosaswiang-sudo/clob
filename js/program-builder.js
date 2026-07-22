@@ -100,7 +100,7 @@ export async function renderProgramsPage() {
         <button class="nav-item" data-route="/library">
           <span>✦</span><small>Library</small>
         </button>
-        <button class="nav-item" data-coming="Settings จะเพิ่มใน Pack ถัดไป">
+        <button class="nav-item" data-route="/trainer-settings">
           <span>⚙</span><small>Settings</small>
         </button>
       </nav>
@@ -181,10 +181,6 @@ function bindProgramsPage() {
 
   document.querySelectorAll("[data-route]").forEach((button) => {
     button.addEventListener("click", () => navigate(button.dataset.route));
-  });
-
-  document.querySelectorAll("[data-coming]").forEach((button) => {
-    button.addEventListener("click", () => showToast(button.dataset.coming));
   });
 }
 

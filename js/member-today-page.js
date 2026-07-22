@@ -179,7 +179,7 @@ function bind() {
   });
 
   document.querySelector("#progress-link").addEventListener("click", () => {
-    navigate(`/progress-${code}`);
+    navigate(`/member-progress-${code}`);
   });
 
   document.querySelectorAll("[data-task-id]").forEach((input) => {
@@ -220,7 +220,7 @@ function bindBottomNav() {
       const target = button.dataset.memberNav;
       if (target === "today") navigate("/member");
       if (target === "workout") navigate("/workout");
-      if (target === "progress") navigate(`/progress-${code}`);
+      if (target === "progress") navigate(`/member-progress-${code}`);
       if (target === "profile") navigate("/member-profile");
     });
   });

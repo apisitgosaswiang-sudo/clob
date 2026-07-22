@@ -60,7 +60,7 @@ export function renderTrainerSettingsPage() {
     </main>
   `;
 
-  document.querySelector("#settings-back").addEventListener("click", () => navigate("/trainer-dashboard"));
+  document.querySelector("#settings-back").addEventListener("click", () => navigate("/trainer"));
 
   document.querySelector("#open-beta-control").addEventListener("click", () => navigate("/beta-control"));
 

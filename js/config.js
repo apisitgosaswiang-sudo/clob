@@ -1,6 +1,6 @@
 export const APP_CONFIG = {
   appName: "CLOB",
-  version: "Beta 1.0 — Pack 10 Trial Freeze",
+  version: "Beta 1.0.1 — Pack10 Hotfix 01",
   trainerPin: "0409",
   memberCodeLength: 5,
   defaultRestSeconds: 90

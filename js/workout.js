@@ -108,10 +108,13 @@ export async function renderWorkoutOverview() {
       <button id="finish-workout-button" class="button ${progress === 100 ? "button-primary" : "button-secondary"} finish-workout-button">
         ${progress === 100 ? "Finish Workout" : "บันทึกและกลับภายหลัง"}
       </button>
+      <nav class="bottom-nav member-workout-nav"><button class="nav-item" data-member-route="/member"><span>⌂</span><small>Today</small></button><button class="nav-item is-active" data-member-route="/workout"><span>✦</span><small>Workout</small></button><button class="nav-item" data-member-progress><span>↗</span><small>Progress</small></button><button class="nav-item" data-member-route="/member-profile"><span>○</span><small>Profile</small></button></nav>
     </div>
   `, "workout-page");
 
   document.querySelector("#workout-back").addEventListener("click", () => navigate("/member"));
+  document.querySelectorAll("[data-member-route]").forEach(button => button.addEventListener("click", () => navigate(button.dataset.memberRoute)));
+  document.querySelector("[data-member-progress]")?.addEventListener("click", () => navigate(`/member-progress-${code}`));
 
   document.querySelectorAll("[data-exercise-index]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -232,6 +235,8 @@ export async function renderExerciseTracker(exerciseIndex) {
       </div>
 
       <div id="workout-toast" class="toast" hidden></div>
+
+      <nav class="bottom-nav member-workout-nav"><button class="nav-item" data-member-route="/member"><span>⌂</span><small>Today</small></button><button class="nav-item is-active" data-member-route="/workout"><span>✦</span><small>Workout</small></button><button class="nav-item" data-member-progress><span>↗</span><small>Progress</small></button><button class="nav-item" data-member-route="/member-profile"><span>○</span><small>Profile</small></button></nav>
       <div id="rest-timer" class="rest-timer" hidden>
         <div class="rest-timer-card">
           <p>REST TIMER</p>
@@ -244,6 +249,8 @@ export async function renderExerciseTracker(exerciseIndex) {
   `, "workout-page");
 
   document.querySelector("#exercise-back").addEventListener("click", () => navigate("/workout"));
+  document.querySelectorAll("[data-member-route]").forEach(button => button.addEventListener("click", () => navigate(button.dataset.memberRoute)));
+  document.querySelector("[data-member-progress]")?.addEventListener("click", () => navigate(`/member-progress-${code}`));
 
   document.querySelectorAll("[data-set-index]").forEach((button) => {
     button.addEventListener("click", () => {

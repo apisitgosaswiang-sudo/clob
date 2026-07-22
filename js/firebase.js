@@ -66,6 +66,29 @@ export async function getMemberByCode(code) {
   }
 }
 
+
+export async function saveMemberRecord(code, payload) {
+  if (!firebaseReady || !database || !dbApi) return false;
+  try {
+    await dbApi.update(dbApi.ref(database, `clob/members/${code}`), payload);
+    return true;
+  } catch (error) {
+    console.warn("Could not save member:", error);
+    return false;
+  }
+}
+
+export async function memberCodeExists(code) {
+  if (!firebaseReady || !database || !dbApi) return false;
+  try {
+    const snapshot = await dbApi.get(dbApi.ref(database, `clob/members/${code}`));
+    return snapshot.exists();
+  } catch (error) {
+    console.warn("Could not check member code:", error);
+    return false;
+  }
+}
+
 export async function saveMemberActivity(code, payload) {
   if (!firebaseReady || !database || !dbApi) return false;
 
