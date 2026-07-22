@@ -3,6 +3,7 @@ import { navigate } from "./router.js";
 import { loadMember, createWorkoutSession, getActiveWorkoutSession } from "./member.js";
 import { getFirebaseStatus } from "./firebase.js";
 import { getMemberSecurityState, createMemberPin, verifyMemberPin, formatLockTime } from "./member-security.js";
+import { isValidCoachId, verifyCoachPin, formatCoachLockTime } from "./trainer-security.js";
 
 const app = document.querySelector("#app");
 
@@ -284,56 +285,142 @@ export function renderTrainerLogin() {
     </div>
 
     <section style="margin-top:52px">
-      <p class="eyebrow">Trainer access</p>
+      <p class="eyebrow">Coach Portal</p>
       <h1 class="title" style="font-size:2.5rem">Welcome, Coach.</h1>
-      <p class="subtitle">กรอก PIN เพื่อเข้าสู่ Trainer Dashboard</p>
+      <p id="trainer-login-subtitle" class="subtitle">กรอกรหัสเทรนเนอร์เพื่อดำเนินการต่อ</p>
     </section>
 
     <section class="login-card card">
-      <label class="field-label" for="trainer-pin">Trainer PIN</label>
-      <input
-        id="trainer-pin"
-        class="input input-code"
-        type="password"
-        inputmode="numeric"
-        maxlength="4"
-        placeholder="••••"
-      />
-      <button id="trainer-login-button" class="button button-primary">
-        เข้าสู่ระบบเทรนเนอร์
-      </button>
-      <div id="trainer-error" hidden></div>
+      <div id="coach-id-step">
+        <label class="field-label" for="trainer-id">Coach ID</label>
+        <input
+          id="trainer-id"
+          class="input input-code"
+          type="text"
+          inputmode="numeric"
+          autocomplete="username"
+          maxlength="4"
+          placeholder="••••"
+        />
+        <button id="trainer-id-button" class="button button-primary" type="button">
+          Continue
+        </button>
+      </div>
+
+      <div id="coach-pin-step" hidden>
+        <div class="coach-login-identity">
+          <span>Coach</span>
+          <strong>First</strong>
+          <button id="change-coach-id" class="button button-text" type="button">เปลี่ยน Coach ID</button>
+        </div>
+        <label class="field-label" for="trainer-pin">Security PIN 6 หลัก</label>
+        <input
+          id="trainer-pin"
+          class="input input-code"
+          type="password"
+          inputmode="numeric"
+          autocomplete="current-password"
+          maxlength="6"
+          placeholder="••••••"
+        />
+        <button id="trainer-login-button" class="button button-primary" type="button">
+          Unlock Coach Portal
+        </button>
+      </div>
+
+      <div id="trainer-error" class="alert alert-error" hidden></div>
     </section>
   `);
 
+  const idStep = document.querySelector("#coach-id-step");
+  const pinStep = document.querySelector("#coach-pin-step");
+  const coachId = document.querySelector("#trainer-id");
   const pin = document.querySelector("#trainer-pin");
   const errorBox = document.querySelector("#trainer-error");
+  const subtitle = document.querySelector("#trainer-login-subtitle");
 
-  document.querySelector("#back-button").addEventListener("click", () => navigate("/"));
+  const showError = (message) => {
+    errorBox.hidden = false;
+    errorBox.textContent = message;
+  };
 
-  const submit = () => {
-    if (pin.value === APP_CONFIG.trainerPin) {
-      sessionStorage.setItem("clob_trainer", "true");
-      navigate("/trainer");
+  const clearError = () => { errorBox.hidden = true; };
+
+  const openPinStep = () => {
+    if (!isValidCoachId(coachId.value)) {
+      showError("ไม่พบ Coach ID นี้ กรุณาตรวจสอบอีกครั้ง");
+      coachId.select();
+      return;
+    }
+    clearError();
+    idStep.hidden = true;
+    pinStep.hidden = false;
+    subtitle.textContent = "กรอก Security PIN 6 หลักของ Coach First";
+    setTimeout(() => pin.focus(), 50);
+  };
+
+  const submitPin = async () => {
+    const button = document.querySelector("#trainer-login-button");
+    if (!/^\d{6}$/.test(pin.value)) {
+      showError("กรุณากรอก Security PIN ให้ครบ 6 หลัก");
+      pin.focus();
       return;
     }
 
-    errorBox.hidden = false;
-    errorBox.className = "alert alert-error";
-    errorBox.textContent = "PIN ไม่ถูกต้อง กรุณาลองใหม่";
-    pin.select();
+    button.disabled = true;
+    button.textContent = "Checking...";
+    clearError();
+
+    try {
+      const result = await verifyCoachPin(pin.value);
+      if (result.ok) {
+        sessionStorage.setItem("clob_trainer", "true");
+        sessionStorage.setItem("clob_coach_id", coachId.value);
+        navigate("/trainer");
+        return;
+      }
+
+      if (result.reason === "locked") {
+        showError(`ใส่ PIN ผิดหลายครั้ง ระบบถูกล็อกชั่วคราว กรุณาลองใหม่ใน ${formatCoachLockTime(result.lockedUntil)}`);
+      } else {
+        const remaining = Number.isFinite(result.attemptsRemaining)
+          ? ` เหลืออีก ${result.attemptsRemaining} ครั้ง`
+          : "";
+        showError(`Security PIN ไม่ถูกต้อง${remaining}`);
+      }
+      pin.value = "";
+      pin.focus();
+    } catch (error) {
+      showError(error.message || "ไม่สามารถตรวจสอบ Security PIN ได้");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Unlock Coach Portal";
+    }
   };
 
+  document.querySelector("#back-button").addEventListener("click", () => navigate("/"));
+  document.querySelector("#trainer-id-button").addEventListener("click", openPinStep);
+  document.querySelector("#trainer-login-button").addEventListener("click", submitPin);
+  document.querySelector("#change-coach-id").addEventListener("click", () => {
+    pinStep.hidden = true;
+    idStep.hidden = false;
+    subtitle.textContent = "กรอกรหัสเทรนเนอร์เพื่อดำเนินการต่อ";
+    pin.value = "";
+    clearError();
+    coachId.focus();
+  });
+
+  coachId.addEventListener("input", () => {
+    coachId.value = coachId.value.replace(/\D/g, "").slice(0, 4);
+    clearError();
+  });
   pin.addEventListener("input", () => {
-    pin.value = pin.value.replace(/\D/g, "").slice(0, 4);
-    errorBox.hidden = true;
+    pin.value = pin.value.replace(/\D/g, "").slice(0, 6);
+    clearError();
   });
-
-  pin.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") submit();
-  });
-
-  document.querySelector("#trainer-login-button").addEventListener("click", submit);
+  coachId.addEventListener("keydown", (event) => { if (event.key === "Enter") openPinStep(); });
+  pin.addEventListener("keydown", (event) => { if (event.key === "Enter") submitPin(); });
+  setTimeout(() => coachId.focus(), 50);
 }
 
 export async function renderMemberDashboard() {

@@ -158,6 +158,84 @@ export async function resetMemberPinSecurity(memberCode) {
   }
 }
 
+
+export async function getCoachRecord(coachId) {
+  if (!firebaseReady || !database || !dbApi) return null;
+  try {
+    const snapshot = await dbApi.get(dbApi.ref(database, `clob/coaches/${coachId}`));
+    return snapshot.exists() ? snapshot.val() : null;
+  } catch (error) {
+    console.warn("Could not load coach record:", error);
+    return null;
+  }
+}
+
+export async function saveCoachRecord(coachId, payload) {
+  if (!firebaseReady || !database || !dbApi) return false;
+  try {
+    await dbApi.update(dbApi.ref(database, `clob/coaches/${coachId}`), payload);
+    return true;
+  } catch (error) {
+    console.warn("Could not save coach record:", error);
+    return false;
+  }
+}
+
+export async function getCoachSecurity(coachId) {
+  const coach = await getCoachRecord(coachId);
+  return coach?.security || null;
+}
+
+export async function registerCoachPinFailure(coachId, options = {}) {
+  if (!firebaseReady || !database || !dbApi) return null;
+  const maxAttempts = Number(options.maxAttempts || 5);
+  const lockMs = Number(options.lockMs || 900000);
+  try {
+    const result = await dbApi.runTransaction(
+      dbApi.ref(database, `clob/coaches/${coachId}/security`),
+      (current) => {
+        const now = Date.now();
+        const base = current || {};
+        if (Number(base.lockedUntil || 0) > now) return base;
+        const failedAttempts = Number(base.failedAttempts || 0) + 1;
+        return {
+          ...base,
+          failedAttempts: failedAttempts >= maxAttempts ? 0 : failedAttempts,
+          lockedUntil: failedAttempts >= maxAttempts ? now + lockMs : 0,
+          lastFailedAt: now
+        };
+      }
+    );
+    return result.snapshot.val();
+  } catch (error) {
+    console.warn("Could not register coach PIN failure:", error);
+    return null;
+  }
+}
+
+export async function clearCoachPinFailures(coachId) {
+  if (!firebaseReady || !database || !dbApi) return false;
+  try {
+    await dbApi.update(dbApi.ref(database, `clob/coaches/${coachId}/security`), {
+      failedAttempts: 0,
+      lockedUntil: 0,
+      lastSuccessfulLoginAt: Date.now()
+    });
+    return true;
+  } catch (error) {
+    console.warn("Could not clear coach PIN failures:", error);
+    return false;
+  }
+}
+
+export async function saveCoachProfilePhoto(coachId, payload) {
+  return saveCoachRecord(coachId, {
+    profilePhoto: payload.url,
+    profilePhotoPath: payload.fullPath,
+    profilePhotoUpdatedAt: Date.now()
+  });
+}
+
 export async function saveMemberActivity(code, payload) {
   if (!firebaseReady || !database || !dbApi) return false;
 

@@ -1,6 +1,6 @@
 import { navigate } from "./router.js";
 import { loadMembers } from "./members.js";
-import { getTrainerProfile } from "./trainer-profile.js";
+import { loadTrainerProfile } from "./trainer-profile.js";
 import {
   getDashboardSummary,
   loadOnlineCoachingState,
@@ -25,7 +25,7 @@ export async function renderTrainerDashboardPage() {
   }
 
   members = await loadMembers();
-  profile = getTrainerProfile();
+  profile = await loadTrainerProfile();
   const validCodes = new Set(members.map((member) => member.code));
   notifications = loadOnlineCoachingState().notifications.filter((item) => validCodes.has(item.memberCode));
   render();
