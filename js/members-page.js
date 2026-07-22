@@ -5,6 +5,7 @@ import {
   packageStatus,
   sortMembers
 } from "./members.js";
+import { trainerResetMemberPin } from "./member-security.js";
 
 const app = document.querySelector("#app");
 let membersCache = [];
