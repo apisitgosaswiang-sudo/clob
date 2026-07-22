@@ -105,6 +105,7 @@ export function getMemberByCode(members, code) {
 }
 
 export function packageStatus(member) {
+  if (!member.packageName || member.packageName === "No Package") return "unassigned";
   if (member.packageDaysLeft <= 0) return "expired";
   if (member.packageDaysLeft <= 7) return "expiring";
   return "active";

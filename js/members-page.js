@@ -237,8 +237,11 @@ export async function renderMemberDetail(code) {
     return;
   }
 
+  const hasPackage = member.packageName && member.packageName !== "No Package";
   const pkgStatus = packageStatus(member);
-  const packageProgress = member.packageDaysLeft > 0 ? Math.min(100, Math.round((30-member.packageDaysLeft)/30*100)) : 100;
+  const packageProgress = hasPackage && member.packageDaysLeft > 0
+    ? Math.min(100, Math.round((30-member.packageDaysLeft)/30*100))
+    : 0;
 
   page(`
     <div class="member-detail-screen">
@@ -302,7 +305,8 @@ export async function renderMemberDetail(code) {
         <div class="package-progress-track">
           <div style="width:${packageProgress}%"></div>
         </div>
-        <small>Online Coaching รายเดือน · ${member.packageRenewal === "auto" ? "Auto renew" : "Manual renew"}</small>
+        <small>${hasPackage ? `${escapeHtml(member.packageBillingCycle === "quarterly" ? "Online Coaching 3 เดือน" : "Online Coaching รายเดือน")} · ${member.packageRenewal === "auto" ? "Auto renew" : "Manual renew"}` : "ยังไม่ได้กำหนดแพ็กเกจ"}</small>
+        <button id="manage-package" class="button button-primary" type="button">${hasPackage ? "แก้ไข / ต่ออายุแพ็กเกจ" : "เลือกแพ็กเกจให้สมาชิก"}</button>
       </section>
 
       <section class="detail-card card">
@@ -332,7 +336,8 @@ export async function renderMemberDetail(code) {
   document.querySelector("#weekly-checkin-tab").addEventListener("click", () => navigate(`/weekly-checkins-${member.code}`));
   document.querySelector("#progress-tab").addEventListener("click", () => navigate(`/progress-${member.code}`));
   document.querySelector("#progress-photo-tab").addEventListener("click", () => navigate(`/progress-photos-${member.code}`));
-  document.querySelector("#history-tab").addEventListener("click", () => toast("Workout History แบบเต็มจะมาใน Pack 05 Part 2"));
-  document.querySelector("#package-tab").addEventListener("click", () => navigate(`/member-package-${member.code}`));
-  document.querySelector("#view-history").addEventListener("click", () => toast("Workout History แบบเต็มจะมาใน Pack 05 Part 2"));
+  document.querySelector("#history-tab")?.addEventListener("click", () => toast("Workout History แบบเต็มจะมาใน Pack 05 Part 2"));
+  document.querySelector("#package-tab")?.addEventListener("click", () => navigate(`/member-package-${member.code}`));
+  document.querySelector("#manage-package")?.addEventListener("click", () => navigate(`/member-package-${member.code}`));
+  document.querySelector("#view-history")?.addEventListener("click", () => toast("Workout History แบบเต็มจะมาใน Pack 05 Part 2"));
 }
