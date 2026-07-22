@@ -118,7 +118,7 @@ function libraryMarkup(items) {
       <button class="exercise-card-main" data-open-exercise="${exercise.id}">
         <div class="exercise-visual">${esc(exercise.category.slice(0, 1))}</div>
         <div>
-          <span>${esc(exercise.category)}</span>
+          <span>${esc(exercise.category)} · ${exercise.builtIn ? "Core" : "My Exercise"}</span>
           <h3>${esc(exercise.name)}</h3>
           <p>${esc(exercise.primaryMuscle)} · ${esc(exercise.equipment)}</p>
         </div>
@@ -234,7 +234,7 @@ function openDetail(exercise) {
       ${exercise.gifUrl ? `<a class="exercise-link" target="_blank" rel="noopener" href="${esc(exercise.gifUrl)}">Open GIF ↗</a>` : ""}
 
       <div class="detail-actions">
-        <button id="edit-exercise" class="button button-secondary">Edit</button>
+        ${exercise.builtIn ? `<span class="exercise-readonly-note">Core exercise · read only</span>` : `<button id="edit-exercise" class="button button-secondary">Edit</button>`}
         <button id="detail-favorite" class="button button-primary">
           ${prefs.favorites[exercise.id] ? "Unfavorite" : "Favorite"}
         </button>
@@ -243,7 +243,7 @@ function openDetail(exercise) {
   `;
 
   document.querySelector("#close-detail").addEventListener("click", () => modal.hidden = true);
-  document.querySelector("#edit-exercise").addEventListener("click", () => {
+  document.querySelector("#edit-exercise")?.addEventListener("click", () => {
     modal.hidden = true;
     editingExercise = JSON.parse(JSON.stringify(exercise));
     openEditor(editingExercise);

@@ -6,7 +6,8 @@ import {
   saveExercisePreferences
 } from "./firebase.js";
 
-const STORAGE_KEY = "clob_exercises_v2";
+const STORAGE_KEY = "clob_exercises_v3_custom";
+const LEGACY_STORAGE_KEY = "clob_exercises_v2";
 const PREFS_KEY = "clob_exercise_prefs_v1";
 
 export const EXERCISE_CATEGORIES = [
@@ -49,24 +50,30 @@ function seed(id, name, category, primaryMuscle, secondaryMuscles, equipment, di
 }
 
 export async function loadExerciseLibrary() {
+  // Core exercises are bundled with the app and are never replaced by Firebase.
+  // Firebase/localStorage contains only trainer-created custom exercises.
+  const core = Object.fromEntries(SEED_EXERCISES.map((item) => [item.id, item]));
   const remote = await getExercises();
-  if (remote) {
-    saveLocal(remote);
-    return Object.values(remote);
+
+  if (remote && typeof remote === "object") {
+    const custom = normalizeCustomExercises(remote);
+    saveLocal(custom);
+    return [...Object.values(core), ...Object.values(custom)];
   }
 
-  const local = loadLocal();
-  if (Object.keys(local).length) return Object.values(local);
-
-  const seeded = Object.fromEntries(SEED_EXERCISES.map((item) => [item.id, item]));
-  saveLocal(seeded);
-  return SEED_EXERCISES;
+  const custom = loadLocal();
+  return [...Object.values(core), ...Object.values(custom)];
 }
 
 export async function saveExercise(exercise) {
+  if (exercise?.builtIn) {
+    throw new Error("Core exercises are read-only.");
+  }
+
   const value = {
     ...exercise,
     id: exercise.id || createExerciseId(exercise.name),
+    builtIn: false,
     updatedAt: Date.now(),
     createdAt: exercise.createdAt || Date.now()
   };
@@ -74,11 +81,17 @@ export async function saveExercise(exercise) {
   const local = loadLocal();
   local[value.id] = value;
   saveLocal(local);
-  await saveExerciseRemote(value.id, value);
+  const savedRemotely = await saveExerciseRemote(value.id, value);
+  if (!savedRemotely) {
+    console.warn("Exercise saved locally because Firebase was unavailable.");
+  }
   return value;
 }
 
 export async function removeExercise(exerciseId) {
+  if (SEED_EXERCISES.some((item) => item.id === exerciseId)) {
+    throw new Error("Core exercises cannot be deleted.");
+  }
   const local = loadLocal();
   delete local[exerciseId];
   saveLocal(local);
@@ -170,14 +183,28 @@ async function persistPrefs(prefs) {
   await saveExercisePreferences(prefs);
 }
 
+function normalizeCustomExercises(value) {
+  return Object.fromEntries(
+    Object.entries(value || {}).filter(([, exercise]) => exercise && !exercise.builtIn)
+  );
+}
+
 function loadLocal() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    const current = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    if (Object.keys(current).length) return normalizeCustomExercises(current);
+
+    // One-time recovery from the previous cache. Remove bundled core records and
+    // retain only trainer-created exercises so older users do not lose custom work.
+    const legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || "{}");
+    const migrated = normalizeCustomExercises(legacy);
+    if (Object.keys(migrated).length) saveLocal(migrated);
+    return migrated;
   } catch {
     return {};
   }
 }
 
 function saveLocal(value) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeCustomExercises(value)));
 }
