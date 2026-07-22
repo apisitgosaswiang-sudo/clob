@@ -1,124 +1,213 @@
+import { navigate } from "./router.js";
+import {
+  loadTrainerDashboard,
+  formatRelativeTime,
+  statusLabel
+} from "./trainer.js";
 
-(() => {
-  const firebaseConfig = window.CLOB_FIREBASE_CONFIG;
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  const db = firebase.database();
+const app = document.querySelector("#app");
 
-  let currentUser = null;
-  const state = { clients: {}, exercises: {}, favorites: {}, recent: {} };
+function page(content, extraClass = "") {
+  app.innerHTML = `<main class="page ${extraClass}">${content}</main>`;
+}
 
-  function userRoot() {
-    if (!currentUser) throw new Error("ยังไม่ได้เข้าสู่ระบบ");
-    return db.ref(`clob/users/${currentUser.uid}`);
+function escapeHtml(value = "") {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good Morning";
+  if (hour < 18) return "Good Afternoon";
+  return "Good Evening";
+}
+
+export async function renderTrainerDashboard() {
+  if (sessionStorage.getItem("clob_trainer") !== "true") {
+    navigate("/trainer-login");
+    return;
   }
 
-  async function seedExerciseLibrary() {
-    const metaRef = db.ref("clob/system/exerciseLibrary");
-    const snap = await metaRef.once("value");
-    const currentVersion = snap.val()?.version || 0;
-    if (currentVersion >= 1) return false;
+  page(`
+    <section class="trainer-loading">
+      <div class="brand">
+        <span class="brand-mark">C</span>
+        <span>CLOB</span>
+      </div>
+      <div class="loading-spinner"></div>
+      <p>Loading...</p>
+    </section>
+  `);
 
-    const payload = {};
-    window.CLOB_STARTER_EXERCISES.forEach(ex => payload[ex.id] = ex);
-    await db.ref("clob/exercise_master").set(payload);
-    await metaRef.set({
-      version: 1,
-      count: window.CLOB_STARTER_EXERCISES.length,
-      seededAt: firebase.database.ServerValue.TIMESTAMP,
-      seededBy: currentUser.uid
-    });
-    return true;
-  }
+  const { summary, members, recent } = await loadTrainerDashboard();
 
-  async function ensureUserProfile() {
-    const profileRef = userRoot().child("profile");
-    const snap = await profileRef.once("value");
-    if (!snap.exists()) {
-      await profileRef.set({
-        role: "trainer",
-        createdAt: firebase.database.ServerValue.TIMESTAMP,
-        updatedAt: firebase.database.ServerValue.TIMESTAMP
-      });
-    }
-  }
+  page(`
+    <div class="trainer-screen">
+      <header class="trainer-header">
+        <div>
+          <p>${greeting()} 👋</p>
+          <h1>Coach First</h1>
+        </div>
+        <button id="trainer-avatar" class="avatar-button" aria-label="เมนูเทรนเนอร์">A</button>
+      </header>
 
-  function subscribeAll(onChange) {
-    const refs = {
-      clients: userRoot().child("clients"),
-      favorites: userRoot().child("exerciseFavorites"),
-      recent: userRoot().child("exerciseRecent"),
-      exercises: db.ref("clob/exercise_master")
-    };
-    Object.entries(refs).forEach(([key, ref]) => {
-      ref.on("value", snap => {
-        state[key] = snap.val() || {};
-        onChange(key, state[key]);
-      });
-    });
-    return () => Object.values(refs).forEach(ref => ref.off());
-  }
+      <section class="trainer-hero">
+        <div>
+          <p class="card-kicker">TODAY</p>
+          <h2>${summary.total} Members</h2>
+          <span>ภาพรวมการฝึกวันนี้</span>
+        </div>
+        <div class="hero-ring">
+          <strong>${summary.completed}</strong>
+          <small>Done</small>
+        </div>
+      </section>
 
-  async function saveClient(data) {
-    const base = userRoot().child("clients");
-    const id = data.id || base.push().key;
-    const old = data.id ? (await base.child(id).once("value")).val() || {} : {};
-    const now = firebase.database.ServerValue.TIMESTAMP;
-    await base.child(id).set({
-      ...old,
-      name: data.name.trim(),
-      phone: data.phone.trim(),
-      goal: data.goal.trim(),
-      packageStart: data.packageStart || "",
-      packageMonths: Number(data.packageMonths) || 1,
-      packageExpiry: calculateExpiry(data.packageStart, Number(data.packageMonths) || 1),
-      createdAt: old.createdAt || now,
-      updatedAt: now
-    });
-    return id;
-  }
+      <section class="trainer-summary-grid">
+        <article class="trainer-stat card">
+          <span class="trainer-stat-icon success">✓</span>
+          <p>Completed</p>
+          <strong>${summary.completed}</strong>
+        </article>
+        <article class="trainer-stat card">
+          <span class="trainer-stat-icon progress">↻</span>
+          <p>In Progress</p>
+          <strong>${summary.inProgress}</strong>
+        </article>
+        <article class="trainer-stat card">
+          <span class="trainer-stat-icon muted">○</span>
+          <p>Not Started</p>
+          <strong>${summary.notStarted}</strong>
+        </article>
+        <article class="trainer-stat card">
+          <span class="trainer-stat-icon warning">!</span>
+          <p>Need Attention</p>
+          <strong>${summary.needAttention}</strong>
+        </article>
+      </section>
 
-  async function deleteClient(id) {
-    await userRoot().child(`clients/${id}`).remove();
-  }
+      <section class="trainer-alert card">
+        <div class="trainer-alert-icon">🎟️</div>
+        <div>
+          <p>Package Expiring</p>
+          <strong>${summary.expiring} Members</strong>
+        </div>
+        <button id="view-expiring">ดูรายชื่อ</button>
+      </section>
 
-  function calculateExpiry(start, months) {
-    if (!start) return "";
-    const d = new Date(start + "T12:00:00");
-    const originalDay = d.getDate();
-    d.setDate(1);
-    d.setMonth(d.getMonth() + months);
-    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-    d.setDate(Math.min(originalDay, lastDay));
-    return d.toISOString().slice(0, 10);
-  }
+      <section class="trainer-section">
+        <div class="section-heading">
+          <div>
+            <p class="section-label">RECENT ACTIVITY</p>
+            <h2>กิจกรรมล่าสุด</h2>
+          </div>
+          <button id="view-all-members" class="button button-text">ดูทั้งหมด</button>
+        </div>
 
-  async function toggleFavorite(exerciseId) {
-    const ref = userRoot().child(`exerciseFavorites/${exerciseId}`);
-    const snap = await ref.once("value");
-    if (snap.exists()) await ref.remove();
-    else await ref.set(true);
-  }
+        <div class="activity-list">
+          ${recent.map((member) => `
+            <button class="activity-item card" data-member-code="${member.code}">
+              <span class="activity-avatar">${escapeHtml(member.name.charAt(0).toUpperCase())}</span>
+              <span class="activity-copy">
+                <strong>${escapeHtml(member.name)}</strong>
+                <small>${escapeHtml(member.workoutTitle)}</small>
+                <em>${formatRelativeTime(member.updatedAt)}</em>
+              </span>
+              <span class="status-pill status-${member.status}">
+                ${statusLabel(member.status)}
+              </span>
+            </button>
+          `).join("")}
+        </div>
+      </section>
 
-  async function markRecent(exerciseId) {
-    await userRoot().child(`exerciseRecent/${exerciseId}`).set(
-      firebase.database.ServerValue.TIMESTAMP
-    );
-  }
+      <div id="trainer-toast" class="toast" hidden></div>
 
-  async function init() {
-    await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-    if (!auth.currentUser) await auth.signInAnonymously();
-    currentUser = auth.currentUser;
-    await ensureUserProfile();
-    const seeded = await seedExerciseLibrary();
-    return { uid: currentUser.uid, seeded };
-  }
+      <nav class="bottom-nav trainer-bottom-nav" aria-label="เมนูเทรนเนอร์">
+        <button class="nav-item is-active" data-trainer-nav="dashboard">
+          <span>⌂</span>
+          <small>Dashboard</small>
+        </button>
+        <button class="nav-item" data-trainer-nav="members">
+          <span>👥</span>
+          <small>Members</small>
+        </button>
+        <button class="nav-item" data-trainer-nav="programs">
+          <span>▤</span>
+          <small>Programs</small>
+        </button>
+        <button class="nav-item" data-trainer-nav="library">
+          <span>✦</span>
+          <small>Library</small>
+        </button>
+        <button class="nav-item" data-trainer-nav="settings">
+          <span>⚙</span>
+          <small>Settings</small>
+        </button>
+      </nav>
+    </div>
+  `, "trainer-page");
 
-  window.ClobDB = {
-    init, subscribeAll, saveClient, deleteClient,
-    toggleFavorite, markRecent, calculateExpiry,
-    getState: () => state,
-    getUid: () => currentUser?.uid || null
+  const showToast = (message) => {
+    const toast = document.querySelector("#trainer-toast");
+    toast.textContent = message;
+    toast.hidden = false;
+    setTimeout(() => { toast.hidden = true; }, 2600);
   };
-})();
+
+  document.querySelector("#trainer-avatar").addEventListener("click", () => {
+    const confirmed = window.confirm("ต้องการออกจากระบบเทรนเนอร์หรือไม่?");
+    if (confirmed) {
+      sessionStorage.removeItem("clob_trainer");
+      navigate("/");
+    }
+  });
+
+  document.querySelector("#view-expiring").addEventListener("click", () => {
+    const names = members
+      .filter((member) => member.packageDaysLeft <= 7)
+      .map((member) => `${member.name} (${member.packageDaysLeft} วัน)`)
+      .join(", ");
+
+    showToast(names || "ไม่มี Package ใกล้หมดอายุ");
+  });
+
+  document.querySelector("#view-all-members").addEventListener("click", () => {
+    navigate("/members");
+  });
+
+  document.querySelectorAll("[data-member-code]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const member = members.find((item) => item.code === button.dataset.memberCode);
+      showToast(`${member.name} · ${statusLabel(member.status)} · เหลือ ${member.sessionsLeft} Sessions`);
+    });
+  });
+
+  document.querySelectorAll("[data-trainer-nav]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const target = button.dataset.trainerNav;
+      if (target === "dashboard") return;
+      if (target === "members") {
+        navigate("/members");
+        return;
+      }
+
+      if (target === "programs") {
+        navigate("/programs");
+        return;
+      }
+
+      if (target === "library") {
+        navigate("/library");
+        return;
+      }
+
+      showToast("Coming soon");
+    });
+  });
+}

@@ -1,0 +1,24 @@
+{
+  "members": {
+    "12345": {
+      "name": "Apisit",
+      "status": "completed",
+      "packageDaysLeft": 18
+    },
+    "54321": {
+      "name": "Mina",
+      "status": "in_progress",
+      "packageDaysLeft": 5
+    },
+    "10001": {
+      "name": "John",
+      "status": "not_started",
+      "packageDaysLeft": 2
+    },
+    "10002": {
+      "name": "Nan",
+      "status": "completed",
+      "packageDaysLeft": 30
+    }
+  }
+}

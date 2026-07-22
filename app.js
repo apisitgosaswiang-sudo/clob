@@ -1,158 +1,444 @@
+import { APP_CONFIG } from "./config.js";
+import { navigate } from "./router.js";
+import { loadMember, createWorkoutSession, getActiveWorkoutSession } from "./member.js";
 
-const app = document.getElementById("app");
-const shell = document.getElementById("shell");
-const loading = document.getElementById("loading");
-const loadingText = document.getElementById("loadingText");
-const eyebrow = document.getElementById("pageEyebrow");
-const toast = document.getElementById("toast");
-const modalBackdrop = document.getElementById("modalBackdrop");
-const form = document.getElementById("clientForm");
-const navItems = [...document.querySelectorAll(".nav-item")];
+const app = document.querySelector("#app");
 
-let currentPage = "home";
-let data = { clients:{}, exercises:{}, favorites:{}, recent:{} };
-let selectedCategory = "All";
-let exerciseQuery = "";
-let clientQuery = "";
-
-function escapeHtml(v=""){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function showToast(message){toast.textContent=message;toast.classList.add("show");clearTimeout(showToast.t);showToast.t=setTimeout(()=>toast.classList.remove("show"),1800)}
-function values(obj){return Object.entries(obj||{}).map(([id,v])=>({id,...v}))}
-function formatDate(v){if(!v)return "ยังไม่กำหนด";return new Intl.DateTimeFormat("th-TH",{day:"numeric",month:"short",year:"2-digit"}).format(new Date(v+"T12:00:00"))}
-
-function clientCard(c){
-  return `<article class="list-card">
-    <div class="avatar">${escapeHtml((c.name||"?").slice(0,1))}</div>
-    <button class="content" data-edit-client="${c.id}" style="border:0;background:none;text-align:left;padding:0;color:inherit">
-      <strong>${escapeHtml(c.name)}</strong>
-      <small>${escapeHtml(c.goal||"ยังไม่ได้ระบุเป้าหมาย")} • หมดอายุ ${formatDate(c.packageExpiry)}</small>
-    </button>
-    <button class="danger-btn" data-delete-client="${c.id}">ลบ</button>
-  </article>`
+function page(content, extraClass = "") {
+  app.innerHTML = `<main class="page ${extraClass}">${content}</main>`;
 }
 
-function homePage(){
-  const clients=values(data.clients);
-  const expiring=clients.filter(c=>c.packageExpiry && new Date(c.packageExpiry) >= new Date() && new Date(c.packageExpiry) <= new Date(Date.now()+30*864e5)).length;
-  return `<section class="hero"><h1>สวัสดีครับ Coach 👋</h1><p>CLOB เชื่อมต่อ Firebase แล้ว ข้อมูลจะบันทึกอัตโนมัติ</p></section>
-  <section class="section"><div class="summary-grid">
-    <article class="summary-card"><div class="dot"></div><strong>${clients.length}</strong><small>Clients</small></article>
-    <article class="summary-card"><div class="dot"></div><strong>${Object.keys(data.exercises).length}</strong><small>Exercises</small></article>
-    <article class="summary-card"><div class="dot"></div><strong>${expiring}</strong><small>ใกล้หมดอายุ</small></article>
-  </div></section>
-  <section class="section"><button class="primary-action" id="quickAddClient"><span>เพิ่มลูกค้าใหม่</span><span>＋</span></button></section>
-  <section class="section"><div class="section-head"><h2>ลูกค้าล่าสุด</h2><button class="text-btn" data-jump="clients">ดูทั้งหมด</button></div>
-  <div class="list">${clients.slice(-3).reverse().map(clientCard).join("")||'<div class="empty-card"><h3>ยังไม่มีลูกค้า</h3><p>เพิ่มลูกค้าคนแรกเพื่อเริ่มใช้งาน</p></div>'}</div></section>`;
+function firebaseStatusMarkup() {
+  return `
+    <div class="status-row" id="firebase-status">
+      <span class="status-dot"></span>
+      <span>กำลังเชื่อมต่อ Firebase...</span>
+    </div>
+  `;
 }
 
-function clientsPage(){
-  const q=clientQuery.toLowerCase();
-  const clients=values(data.clients).filter(c=>(c.name+" "+(c.phone||"")+" "+(c.goal||"")).toLowerCase().includes(q));
-  return `<div class="page-title"><h1>Clients</h1><p>แพ็กเกจใช้วันเริ่มต้น จำนวนเดือน และวันหมดอายุ</p></div>
-  <div class="search"><span>⌕</span><input id="clientSearch" placeholder="ค้นหาลูกค้า" value="${escapeHtml(clientQuery)}"></div>
-  <section class="section"><div class="section-head"><h2>ลูกค้าทั้งหมด</h2><button class="text-btn" id="addClient">＋ เพิ่ม</button></div>
-  <div class="list">${clients.map(clientCard).join("")||'<div class="empty-card"><h3>ไม่พบลูกค้า</h3><p>ลองเปลี่ยนคำค้นหา</p></div>'}</div></section>`;
+function bindFirebaseStatus() {
+  const status = document.querySelector("#firebase-status");
+  if (!status) return;
+
+  window.addEventListener("clob:firebase-status", (event) => {
+    const { ready } = event.detail;
+    status.innerHTML = ready
+      ? `<span class="status-dot is-online"></span><span>Firebase connected</span>`
+      : `<span class="status-dot"></span><span>โหมดออฟไลน์ — หน้าเว็บยังใช้งานได้</span>`;
+  }, { once: true });
 }
 
-function programsPage(){
-  return `<div class="page-title"><h1>Programs</h1><p>Program Builder จะพัฒนาใน Alpha 0.2</p></div>
-  <div class="empty-card"><h3>Foundation พร้อมแล้ว</h3><p>รอบถัดไปจะเพิ่ม Weeks → Days → Exercises และ Exercise Picker</p></div>`;
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good Morning";
+  if (hour < 18) return "Good Afternoon";
+  return "Good Evening";
 }
 
-function exerciseCard(e){
-  const fav=!!data.favorites[e.id];
-  return `<article class="exercise-card">
-    <div class="exercise-icon">${escapeHtml((e.movementPattern||"EX").slice(0,2).toUpperCase())}</div>
-    <button class="content" data-use-exercise="${e.id}" style="border:0;background:none;text-align:left;padding:0;color:inherit">
-      <strong>${escapeHtml(e.name)}</strong><small>${escapeHtml(e.category)} • ${escapeHtml(e.equipment)} • ${escapeHtml(e.difficulty)}</small>
-    </button>
-    <button class="fav-btn ${fav?"active":""}" data-fav="${e.id}" aria-label="favorite">${fav?"★":"☆"}</button>
-  </article>`;
+function escapeHtml(value = "") {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-function exercisesPage(){
-  const exercises=values(data.exercises);
-  const q=exerciseQuery.toLowerCase();
-  const filtered=exercises.filter(e=>(selectedCategory==="All"||e.category===selectedCategory)&&
-    (e.name+" "+e.equipment+" "+e.primaryMuscle+" "+e.movementPattern).toLowerCase().includes(q));
-  const recentIds=Object.entries(data.recent||{}).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id])=>id);
-  const recent=recentIds.map(id=>data.exercises[id]&&({id,...data.exercises[id]})).filter(Boolean);
-  return `<div class="page-title"><h1>Exercises</h1><p>${exercises.length} ท่า • Search, Favorites และ Recent พร้อมใช้</p></div>
-  <div class="search"><span>⌕</span><input id="exerciseSearch" placeholder="ค้นหาท่า อุปกรณ์ หรือกล้ามเนื้อ" value="${escapeHtml(exerciseQuery)}"></div>
-  <div class="chips">${["All","Legs","Push","Pull","Core","Cardio","Accessory","Mobility"].map(c=>`<button class="chip ${selectedCategory===c?"active":""}" data-cat="${c}">${c}</button>`).join("")}</div>
-  ${recent.length&&!exerciseQuery&&selectedCategory==="All"?`<section class="section"><div class="section-head"><h2>Recent</h2></div><div>${recent.map(exerciseCard).join("")}</div></section>`:""}
-  <section class="section" style="margin-top:14px"><div class="section-head"><h2>Exercise Library</h2><button class="text-btn" id="showFavorites">Favorites</button></div>
-  <div>${filtered.map(exerciseCard).join("")||'<div class="empty-card"><h3>ไม่พบท่า</h3><p>ลองเปลี่ยนคำค้นหาหรือหมวดหมู่</p></div>'}</div></section>`;
+export function renderLanding() {
+  page(`
+    <div class="brand">
+      <span class="brand-mark">C</span>
+      <span>CLOB</span>
+    </div>
+
+    <section style="margin-top:34px">
+      <p class="eyebrow">Your training starts here</p>
+      <h1 class="title">Train smarter.<br>Stay consistent.</h1>
+      <p class="subtitle">
+        ดูโปรแกรมวันนี้ บันทึกการฝึก และติดตามความก้าวหน้าได้ในที่เดียว
+      </p>
+    </section>
+
+    <section class="landing-art" aria-label="ภาพรวมการฝึก">
+      <div class="landing-art-content">
+        <small>TODAY</small>
+        <strong>พร้อมเริ่ม Workout วันนี้หรือยัง?</strong>
+        <span>โปรแกรมจากโค้ชจะอยู่ตรงนี้</span>
+      </div>
+    </section>
+
+    <section class="login-card card">
+      <label class="field-label" for="member-code">รหัสสมาชิก 5 หลัก</label>
+      <input
+        id="member-code"
+        class="input input-code"
+        type="text"
+        inputmode="numeric"
+        autocomplete="one-time-code"
+        maxlength="${APP_CONFIG.memberCodeLength}"
+        placeholder="•••••"
+        aria-describedby="member-helper"
+      />
+      <button id="member-login-button" class="button button-primary">
+        เข้าสู่ระบบสมาชิก
+      </button>
+      <p id="member-helper" class="helper">
+        ทดสอบด้วยรหัส 12345
+      </p>
+      <div id="member-error" hidden></div>
+    </section>
+
+    <div class="trainer-entry">
+      <p>สำหรับเทรนเนอร์</p>
+      <button id="trainer-entry-button" class="button button-secondary">
+        Trainer Login
+      </button>
+    </div>
+
+    ${firebaseStatusMarkup()}
+
+    <p class="footer-note">${APP_CONFIG.version}</p>
+  `, "page-center");
+
+  const input = document.querySelector("#member-code");
+  const button = document.querySelector("#member-login-button");
+  const errorBox = document.querySelector("#member-error");
+
+  const submit = () => {
+    const code = input.value.replace(/\D/g, "");
+
+    if (code.length !== APP_CONFIG.memberCodeLength) {
+      errorBox.hidden = false;
+      errorBox.className = "alert alert-error";
+      errorBox.textContent = "กรุณากรอกรหัสสมาชิกให้ครบ 5 หลัก";
+      input.focus();
+      return;
+    }
+
+    sessionStorage.setItem("clob_member_code", code);
+    navigate("/member");
+  };
+
+  input.addEventListener("input", () => {
+    input.value = input.value.replace(/\D/g, "").slice(0, APP_CONFIG.memberCodeLength);
+    errorBox.hidden = true;
+  });
+
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") submit();
+  });
+
+  button.addEventListener("click", submit);
+  document.querySelector("#trainer-entry-button")
+    .addEventListener("click", () => navigate("/trainer-login"));
+
+  bindFirebaseStatus();
 }
 
-function settingsPage(){
-  return `<div class="page-title"><h1>Settings</h1><p>CLOB Alpha 0.1</p></div>
-  <div class="settings-card"><strong>Anonymous User ID</strong><br><code>${escapeHtml(ClobDB.getUid()||"")}</code></div>
-  <section class="section"><div class="settings-card"><strong>Database path</strong><p style="color:var(--muted)">clob/users/{uid} และ clob/exercise_master</p></div></section>`;
+export function renderTrainerLogin() {
+  page(`
+    <div class="topbar">
+      <button id="back-button" class="back-button" aria-label="ย้อนกลับ">←</button>
+      <div class="brand">
+        <span class="brand-mark">C</span>
+        <span>CLOB</span>
+      </div>
+      <span style="width:42px"></span>
+    </div>
+
+    <section style="margin-top:52px">
+      <p class="eyebrow">Trainer access</p>
+      <h1 class="title" style="font-size:2.5rem">Welcome, Coach.</h1>
+      <p class="subtitle">กรอก PIN เพื่อเข้าสู่ Trainer Dashboard</p>
+    </section>
+
+    <section class="login-card card">
+      <label class="field-label" for="trainer-pin">Trainer PIN</label>
+      <input
+        id="trainer-pin"
+        class="input input-code"
+        type="password"
+        inputmode="numeric"
+        maxlength="4"
+        placeholder="••••"
+      />
+      <button id="trainer-login-button" class="button button-primary">
+        เข้าสู่ระบบเทรนเนอร์
+      </button>
+      <div id="trainer-error" hidden></div>
+    </section>
+  `);
+
+  const pin = document.querySelector("#trainer-pin");
+  const errorBox = document.querySelector("#trainer-error");
+
+  document.querySelector("#back-button").addEventListener("click", () => navigate("/"));
+
+  const submit = () => {
+    if (pin.value === APP_CONFIG.trainerPin) {
+      sessionStorage.setItem("clob_trainer", "true");
+      navigate("/trainer");
+      return;
+    }
+
+    errorBox.hidden = false;
+    errorBox.className = "alert alert-error";
+    errorBox.textContent = "PIN ไม่ถูกต้อง กรุณาลองใหม่";
+    pin.select();
+  };
+
+  pin.addEventListener("input", () => {
+    pin.value = pin.value.replace(/\D/g, "").slice(0, 4);
+    errorBox.hidden = true;
+  });
+
+  pin.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") submit();
+  });
+
+  document.querySelector("#trainer-login-button").addEventListener("click", submit);
 }
 
-const pages={home:homePage,clients:clientsPage,programs:programsPage,exercises:exercisesPage,settings:settingsPage};
+export async function renderMemberDashboard() {
+  const code = sessionStorage.getItem("clob_member_code");
 
-function render(){
-  app.innerHTML=pages[currentPage]();
-  navItems.forEach(n=>n.classList.toggle("active",n.dataset.page===currentPage));
-  bindEvents();
-}
-function setPage(page){currentPage=page;eyebrow.textContent={home:"Coach workspace",clients:"จัดการลูกค้า",programs:"โปรแกรมฝึก",exercises:"คลังท่าออกกำลังกาย",settings:"การตั้งค่า"}[page];window.scrollTo({top:0,behavior:"instant"});render()}
-
-function openClientModal(client=null){
-  document.getElementById("modalTitle").textContent=client?"แก้ไขลูกค้า":"เพิ่มลูกค้า";
-  document.getElementById("clientId").value=client?.id||"";
-  document.getElementById("clientName").value=client?.name||"";
-  document.getElementById("clientPhone").value=client?.phone||"";
-  document.getElementById("clientGoal").value=client?.goal||"";
-  document.getElementById("packageStart").value=client?.packageStart||new Date().toISOString().slice(0,10);
-  document.getElementById("packageMonths").value=client?.packageMonths||1;
-  modalBackdrop.hidden=false;document.body.style.overflow="hidden";
-}
-function closeClientModal(){modalBackdrop.hidden=true;document.body.style.overflow=""}
-
-function bindEvents(){
-  document.getElementById("quickAddClient")?.addEventListener("click",()=>openClientModal());
-  document.getElementById("addClient")?.addEventListener("click",()=>openClientModal());
-  document.getElementById("clientSearch")?.addEventListener("input",e=>{clientQuery=e.target.value;render()});
-  document.querySelectorAll("[data-jump]").forEach(el=>el.addEventListener("click",()=>setPage(el.dataset.jump)));
-  document.querySelectorAll("[data-edit-client]").forEach(el=>el.addEventListener("click",()=>{const id=el.dataset.editClient;openClientModal({id,...data.clients[id]})}));
-  document.querySelectorAll("[data-delete-client]").forEach(el=>el.addEventListener("click",async()=>{if(confirm("ลบลูกค้ารายนี้หรือไม่?")){await ClobDB.deleteClient(el.dataset.deleteClient);showToast("ลบลูกค้าแล้ว")}}));
-  document.getElementById("exerciseSearch")?.addEventListener("input",e=>{exerciseQuery=e.target.value;render()});
-  document.querySelectorAll("[data-cat]").forEach(el=>el.addEventListener("click",()=>{selectedCategory=el.dataset.cat;render()}));
-  document.querySelectorAll("[data-fav]").forEach(el=>el.addEventListener("click",async()=>{await ClobDB.toggleFavorite(el.dataset.fav)}));
-  document.querySelectorAll("[data-use-exercise]").forEach(el=>el.addEventListener("click",async()=>{await ClobDB.markRecent(el.dataset.useExercise);showToast("เพิ่มใน Recent แล้ว")}));
-  document.getElementById("showFavorites")?.addEventListener("click",()=>{const favIds=Object.keys(data.favorites||{});exerciseQuery="";selectedCategory="All";const all=data.exercises;data.exercises=Object.fromEntries(favIds.filter(id=>all[id]).map(id=>[id,all[id]]));render();setTimeout(()=>location.reload(),3000)});
-}
-
-navItems.forEach(n=>n.addEventListener("click",()=>setPage(n.dataset.page)));
-document.getElementById("closeModal").addEventListener("click",closeClientModal);
-document.getElementById("cancelModal").addEventListener("click",closeClientModal);
-modalBackdrop.addEventListener("click",e=>{if(e.target===modalBackdrop)closeClientModal()});
-form.addEventListener("submit",async e=>{
-  e.preventDefault();
-  try{
-    await ClobDB.saveClient({
-      id:document.getElementById("clientId").value,
-      name:document.getElementById("clientName").value,
-      phone:document.getElementById("clientPhone").value,
-      goal:document.getElementById("clientGoal").value,
-      packageStart:document.getElementById("packageStart").value,
-      packageMonths:document.getElementById("packageMonths").value
-    });
-    closeClientModal();showToast("บันทึกลูกค้าแล้ว");
-  }catch(err){alert(err.message)}
-});
-
-(async()=>{
-  try{
-    const result=await ClobDB.init();
-    loadingText.textContent=result.seeded?"นำเข้าฐานข้อมูล 192 ท่าเรียบร้อย":"เชื่อมต่อเรียบร้อย";
-    ClobDB.subscribeAll((key,value)=>{data[key]=value;render()});
-    setTimeout(()=>{loading.hidden=true;shell.hidden=false;render()},500);
-  }catch(err){
-    loadingText.textContent="เชื่อมต่อไม่สำเร็จ: "+err.message;
-    console.error(err);
+  if (!code) {
+    navigate("/");
+    return;
   }
-})();
+
+  page(`
+    <section class="member-loading">
+      <div class="brand">
+        <span class="brand-mark">C</span>
+        <span>CLOB</span>
+      </div>
+      <div class="loading-spinner" aria-label="กำลังโหลด"></div>
+      <p>กำลังโหลดข้อมูลสมาชิก...</p>
+    </section>
+  `);
+
+  const member = await loadMember(code);
+  const percentage = Math.min(
+    100,
+    Math.round((member.week.completed / Math.max(member.week.target, 1)) * 100)
+  );
+
+  const weightChangeText = member.weight.change < 0
+    ? `ลดลง ${Math.abs(member.weight.change)} ${member.weight.unit}`
+    : member.weight.change > 0
+      ? `เพิ่มขึ้น ${member.weight.change} ${member.weight.unit}`
+      : "ยังไม่มีการเปลี่ยนแปลง";
+
+  page(`
+    <div class="member-screen">
+      <header class="member-header">
+        <div>
+          <p class="member-greeting">${getGreeting()} 👋</p>
+          <h1>${escapeHtml(member.greetingName)}</h1>
+        </div>
+        <button id="member-menu-button" class="avatar-button" aria-label="เมนูสมาชิก">
+          ${escapeHtml(member.greetingName.charAt(0).toUpperCase())}
+        </button>
+      </header>
+
+      <section class="today-card">
+        <div class="today-card-top">
+          <div>
+            <p class="card-kicker">TODAY</p>
+            <h2>${escapeHtml(member.workout.title)}</h2>
+          </div>
+          <span class="ready-badge">พร้อมฝึก</span>
+        </div>
+
+        <div class="workout-meta">
+          <span>⏱ ${member.workout.duration} นาที</span>
+          <span>•</span>
+          <span>${member.workout.exercises} ท่า</span>
+        </div>
+
+        <div class="coach-message">
+          <span class="coach-avatar">C</span>
+          <div>
+            <strong>${escapeHtml(member.coachName)}</strong>
+            <p>${escapeHtml(member.coachMessage)}</p>
+          </div>
+        </div>
+
+        <button id="start-workout-button" class="button button-light">
+          เริ่ม Workout
+          <span>→</span>
+        </button>
+      </section>
+
+      <section class="member-section">
+        <div class="section-heading">
+          <div>
+            <p class="section-label">THIS WEEK</p>
+            <h2>ความสม่ำเสมอ</h2>
+          </div>
+          <strong>${member.week.completed} / ${member.week.target}</strong>
+        </div>
+
+        <div class="progress-track" aria-label="ความคืบหน้ารายสัปดาห์">
+          <div class="progress-fill" style="width:${percentage}%"></div>
+        </div>
+        <p class="progress-caption">สำเร็จแล้ว ${percentage}% ของเป้าหมายสัปดาห์นี้</p>
+      </section>
+
+      <section class="stat-grid">
+        <article class="stat-card card">
+          <div class="stat-icon">⚖️</div>
+          <p>น้ำหนักล่าสุด</p>
+          <strong>${member.weight.current || "—"} <small>${member.weight.current ? member.weight.unit : ""}</small></strong>
+          <span class="${member.weight.change <= 0 ? "trend-good" : "trend-neutral"}">${weightChangeText}</span>
+        </article>
+
+        <article class="stat-card card">
+          <div class="stat-icon">🎟️</div>
+          <p>Package</p>
+          <strong>${member.package.daysLeft} <small>วัน</small></strong>
+          <span>เหลือ ${member.package.sessionsLeft} Session</span>
+        </article>
+      </section>
+
+      <section class="next-session card">
+        <div>
+          <p class="section-label">${escapeHtml(member.nextSession.label)}</p>
+          <h3>${escapeHtml(member.nextSession.date)}</h3>
+        </div>
+        <strong>${escapeHtml(member.nextSession.time)}</strong>
+      </section>
+
+      <div id="member-toast" class="toast" hidden></div>
+
+      <nav class="bottom-nav" aria-label="เมนูสมาชิก">
+        <button class="nav-item is-active" data-nav="today">
+          <span>⌂</span>
+          <small>Today</small>
+        </button>
+        <button class="nav-item" data-nav="workout">
+          <span>✦</span>
+          <small>Workout</small>
+        </button>
+        <button class="nav-item" data-nav="progress">
+          <span>↗</span>
+          <small>Progress</small>
+        </button>
+        <button class="nav-item" data-nav="profile">
+          <span>○</span>
+          <small>Profile</small>
+        </button>
+      </nav>
+    </div>
+  `, "member-page");
+
+  document.querySelector("#start-workout-button").addEventListener("click", () => {
+    createWorkoutSession(code, member);
+    navigate("/workout");
+  });
+
+  document.querySelector("#member-menu-button").addEventListener("click", () => {
+    const confirmed = window.confirm("ต้องการออกจากระบบสมาชิกหรือไม่?");
+    if (confirmed) {
+      sessionStorage.removeItem("clob_member_code");
+      navigate("/");
+    }
+  });
+
+  document.querySelectorAll(".nav-item").forEach((button) => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll(".nav-item").forEach((item) => item.classList.remove("is-active"));
+      button.classList.add("is-active");
+
+      if (button.dataset.nav === "workout") {
+        const active = getActiveWorkoutSession(code);
+        if (!active || active.status === "completed") {
+          createWorkoutSession(code, member);
+        }
+        navigate("/workout");
+        return;
+      }
+
+      const labels = {
+        progress: "หน้ารายละเอียด Progress จะพร้อมใน Pack 08",
+        profile: "หน้า Profile จะเพิ่มใน Pack ถัดไป"
+      };
+
+      if (labels[button.dataset.nav]) {
+        const toast = document.querySelector("#member-toast");
+        toast.hidden = false;
+        toast.textContent = labels[button.dataset.nav];
+        setTimeout(() => { toast.hidden = true; }, 2600);
+      }
+    });
+  });
+}
+
+export function renderTrainerPlaceholder() {
+  if (sessionStorage.getItem("clob_trainer") !== "true") {
+    navigate("/trainer-login");
+    return;
+  }
+
+  page(`
+    <div class="topbar">
+      <div class="brand">
+        <span class="brand-mark">C</span>
+        <span>CLOB</span>
+      </div>
+      <button id="logout-button" class="button button-text">ออกจากระบบ</button>
+    </div>
+
+    <section class="dashboard-placeholder">
+      <p class="eyebrow">Trainer mode</p>
+      <h1 class="title" style="font-size:2.5rem">Welcome, Coach.</h1>
+      <p class="subtitle">Foundation สำหรับ Trainer Dashboard พร้อมใช้งาน</p>
+
+      <div class="preview-card card">
+        <p class="preview-label">TRAINER DASHBOARD</p>
+        <h2 class="preview-title">Members, Programs & Library</h2>
+        <div class="preview-meta">
+          <span>Pack 04–07</span>
+        </div>
+      </div>
+
+      <div class="placeholder-grid">
+        <article class="placeholder-card card">
+          <h3>Members</h3>
+          <p>บริหารสมาชิก ดูสถานะการฝึกและแพ็กเกจ</p>
+        </article>
+        <article class="placeholder-card card">
+          <h3>Programs</h3>
+          <p>สร้างและส่งโปรแกรมให้สมาชิก</p>
+        </article>
+        <article class="placeholder-card card">
+          <h3>Exercise Library</h3>
+          <p>คลังท่าออกกำลังกายสำหรับสร้างโปรแกรม</p>
+        </article>
+      </div>
+    </section>
+  `);
+
+  document.querySelector("#logout-button").addEventListener("click", () => {
+    sessionStorage.removeItem("clob_trainer");
+    navigate("/");
+  });
+}
+
+export function renderNotFound() {
+  page(`
+    <div class="brand">
+      <span class="brand-mark">C</span>
+      <span>CLOB</span>
+    </div>
+    <section style="margin-top:52px">
+      <p class="eyebrow">404</p>
+      <h1 class="title" style="font-size:2.5rem">ไม่พบหน้านี้</h1>
+      <button id="home-button" class="button button-primary">กลับหน้าแรก</button>
+    </section>
+  `, "page-center");
+
+  document.querySelector("#home-button").addEventListener("click", () => navigate("/"));
+}

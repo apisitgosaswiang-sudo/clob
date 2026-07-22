@@ -1,4 +1,4 @@
-const CACHE_NAME = "clob-pack10-beta-trial-v1";
+const CACHE_NAME = "clob-pack10-hotfix01-v1";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -40,6 +40,8 @@ const APP_SHELL = [
   "./js/workout.js",
   "./manifest.json",
   "./assets/logo.svg"
+  "./js/member-management-page.js",
+  "./js/member-progress-page.js",
 ];
 
 self.addEventListener("install", (event) => {
