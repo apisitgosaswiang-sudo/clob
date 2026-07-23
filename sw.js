@@ -1,4 +1,4 @@
-const CACHE_NAME = "morning-warrior-v2-nutrition-ai-beta-hotfix-2";
+const CACHE_NAME = "morning-warrior-v2-nutrition-ai-beta-hotfix-4";
 
 const APP_SHELL = [
   "./",
@@ -10,7 +10,7 @@ const APP_SHELL = [
   "./css/app.css",
   "./css/design-system.css",
   "./css/nutrition.css",
-  "./js/app.js",
+  "./js/app.js?v=hotfix-4",
   "./js/config.js",
   "./js/coach-session.js",
   "./js/firebase.js",
@@ -88,7 +88,7 @@ self.addEventListener("fetch", (event) => {
   // HTML navigation: use the newest deployment first.
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: "no-store" })
         .then((response) => {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put("./index.html", copy));
@@ -102,7 +102,24 @@ self.addEventListener("fetch", (event) => {
   // Only handle same-origin static assets.
   if (url.origin !== self.location.origin) return;
 
-  // Static assets: cache first, then network. Never replace missing JS/CSS with HTML.
+  // Version-sensitive assets must prefer the current deployment. This prevents
+  // a new HTML shell from running an older config.js from a previous PWA cache.
+  if (/\.(?:js|css|json)$/i.test(url.pathname)) {
+    event.respondWith(
+      fetch(request, { cache: "no-store" })
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // Other same-origin assets remain cache-first for offline startup.
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;

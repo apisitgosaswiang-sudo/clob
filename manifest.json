@@ -1,7 +1,7 @@
 {
-  "name": "Morning Warrior by CLOB",
+  "name": "Morning Warrior",
   "short_name": "Morning Warrior",
-  "description": "แอป Online Coaching สำหรับเทรนเนอร์ โดย CLOB",
+  "description": "แอป Online Coaching สำหรับเทรนเนอร์",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FFFFFF",

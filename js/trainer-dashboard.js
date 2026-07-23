@@ -37,7 +37,7 @@ export async function renderTrainerDashboard() {
     <section class="trainer-loading">
       <div class="brand">
         <span class="brand-mark">M</span>
-        <span class="brand-lockup"><span>Morning Warrior</span><small>by CLOB</small></span>
+        <span class="brand-lockup"><span>Morning Warrior</span></span>
       </div>
       <div class="loading-spinner"></div>
       <p>Loading...</p>

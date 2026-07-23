@@ -1,4 +1,4 @@
-Morning Warrior by CLOB — Full Hotfix Build 2
+Morning Warrior — Full Hotfix Build 4
 Build date: 2026-07-23
 Expected entry point: /index.html
 Expected app module: /js/app.js

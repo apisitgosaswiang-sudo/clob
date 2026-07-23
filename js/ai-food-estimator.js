@@ -1,13 +1,15 @@
 import { APP_CONFIG } from "./config.js";
-import { getFirebaseApp, getFirebaseStatus } from "./firebase.js";
+import {
+  ensureAppCheckToken,
+  getFirebaseApp,
+  getFirebaseStatus
+} from "./firebase.js";
 import {
   cacheAiEstimate,
   getCachedAiEstimate,
   reserveAiAnalysis,
   releaseAiAnalysis
 } from "./nutrition.js";
-
-let appCheckInitialized = false;
 
 export async function prepareFoodPhoto(file) {
   if (!(file instanceof Blob) || !String(file.type || "").startsWith("image/")) {
@@ -82,7 +84,8 @@ export async function estimateFoodPhoto({
 
   let reservation = null;
   try {
-    await ensureAppCheck();
+    // Verify App Check before reserving the member/project AI quota.
+    await ensureAppCheckToken();
     reservation = await reserveAiAnalysis(memberCode, selectedDate);
     if (!reservation.allowed) {
       const message = reservation.reason === "member_limit"
@@ -190,22 +193,10 @@ export function sanitizeEstimate(value = {}) {
   };
 }
 
-async function ensureAppCheck() {
-  if (appCheckInitialized || !APP_CONFIG.appCheckSiteKey) return;
-  const { initializeAppCheck, ReCaptchaEnterpriseProvider } = await import(
-    "https://www.gstatic.com/firebasejs/12.14.0/firebase-app-check.js"
-  );
-  initializeAppCheck(getFirebaseApp(), {
-    provider: new ReCaptchaEnterpriseProvider(APP_CONFIG.appCheckSiteKey),
-    isTokenAutoRefreshEnabled: true
-  });
-  appCheckInitialized = true;
-}
-
 function friendlyAiError(error) {
-  const message = String(error?.message || "");
-  if (/app.?check|403|permission/i.test(message)) {
-    return "AI ยังไม่ได้รับอนุญาตบนเว็บไซต์นี้ กรุณากรอกอาหารเองก่อน";
+  const message = `${String(error?.code || "")} ${String(error?.message || "")}`;
+  if (/app.?check|recaptcha|attestation|403|permission/i.test(message)) {
+    return "App Check ยังยืนยันเว็บไซต์นี้ไม่สำเร็จ กรุณาปิด–เปิดแอปแล้วลองอีกครั้ง";
   }
   if (/429|quota|rate/i.test(message)) {
     return "โควตา AI ชั่วคราวเต็มแล้ว กรุณากรอกอาหารเอง";

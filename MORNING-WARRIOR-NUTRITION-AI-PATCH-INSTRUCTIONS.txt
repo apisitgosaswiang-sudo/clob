@@ -1,20 +1,20 @@
 MORNING WARRIOR v2 — NUTRITION + AI FOOD ESTIMATION BETA
 Master brand: CLOB
-Base required: CLOB v2 Patch-011F1
+Build type: Full Hotfix 4 (complete replacement)
 
 ไฟล์ ZIP นี้เป็นแพตช์แบบวางทับ โดยโครงสร้างภายในเริ่มจาก Root ของเว็บ
 เช่น index.html, sw.js, css/, js/, assets/ และ docs/
 
 วิธีติดตั้ง
 1. สำรองโฟลเดอร์ public ที่ใช้งานอยู่ก่อน
-2. ตรวจว่าระบบปัจจุบันมี Patch-011F1 แล้ว
-3. แตก ZIP และคัดลอกไฟล์ทั้งหมดไปที่ Root ของ public
-4. เลือก Replace/Overwrite เมื่อระบบถาม
-5. Publish/Deploy ตามวิธีเดิมของระบบ
-6. หลัง Publish ให้ปิด PWA แล้วเปิดใหม่ หรือ Hard Refresh 1 ครั้ง
+2. แตก ZIP และคัดลอกไฟล์ทั้งหมดไปที่ Root ของ public
+   (ไม่ต้องติดตั้ง Patch-011F1 ก่อน)
+3. เลือก Replace/Overwrite เมื่อระบบถาม
+4. Publish/Deploy ตามวิธีเดิมของระบบ
+5. เปิด PWA แล้วรอให้ระบบ Reload อัตโนมัติ 1 ครั้งเมื่อ Hotfix 4 เข้าควบคุม
 
 สิ่งที่รวมอยู่ในแพตช์
-- ชื่อแอป Morning Warrior พร้อมข้อความ by CLOB
+- ชื่อแอป Morning Warrior โดยไม่มีข้อความ by CLOB ในโลโก้ และขยายชื่อให้เด่นขึ้น
 - Minimal + Energy / Quiet outside. Active inside.
 - Minimal Dynamic Home และ Next Best Action
 - เมนูสมาชิก 5 แท็บ: Home / Workout / Nutrition / Progress / Profile
@@ -27,7 +27,7 @@ Base required: CLOB v2 Patch-011F1
 
 สถานะ AI ก่อนตั้งค่า Firebase
 - ระบบ Nutrition แบบกรอกเองใช้งานได้ทันที
-- Full Hotfix 2 ใส่ Public Site key ของ App Check ไว้แล้ว; ไม่ต้องเพิ่ม
+- Full Hotfix 4 ใส่ Public Site key ของ App Check ไว้แล้ว; ไม่ต้องเพิ่ม
   reCAPTCHA script, TOKEN, USER_ACTION, endpoint หรือ API_KEY เอง
 - อ่าน docs/NUTRITION-AI-SETUP.md และตั้งค่า Firebase AI Logic + App Check
 - ใส่เฉพาะ Public reCAPTCHA Enterprise Site Key ใน js/config.js
@@ -43,6 +43,6 @@ Base required: CLOB v2 Patch-011F1
 3. สมาชิกเห็นเมนู 5 แท็บและเข้า Nutrition ได้
 4. กรอกอาหารเองแล้ว Home อัปเดต Calories Remaining
 5. หากเปิด AI แล้ว ให้ทดสอบรูปเดิมว่าไม่หักโควตาซ้ำ
-6. ตรวจชื่อแอป Morning Warrior และข้อความ by CLOB
+6. ตรวจชื่อแอป Morning Warrior ต้องไม่มีข้อความ by CLOB ในโลโก้
 
 รายงานการทดสอบก่อนส่งอยู่ที่ docs/MORNING-WARRIOR-DELIVERY-QA.md

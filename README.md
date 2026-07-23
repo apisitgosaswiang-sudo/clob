@@ -1,4 +1,4 @@
-# Morning Warrior by CLOB — Recovery Build v1.0
+# Morning Warrior — Recovery Build v1.0
 
 ฐานระบบสำหรับกลับมา Deploy หลังไฟล์ถูกอัปโหลดผิดตำแหน่ง
 

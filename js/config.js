@@ -1,7 +1,7 @@
 export const APP_CONFIG = {
   appName: "Morning Warrior",
   parentBrand: "CLOB",
-  version: "Morning Warrior v2 · Nutrition AI Beta · Hotfix 2",
+  version: "Morning Warrior v2 · Nutrition AI Beta · Hotfix 4",
   coachId: "0409",
   coachPinLength: 6,
   memberCodeLength: 5,

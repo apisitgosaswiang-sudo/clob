@@ -1,7 +1,11 @@
-import { firebaseConfig } from "./config.js";
+import { APP_CONFIG, firebaseConfig } from "./config.js";
 
 let firebaseReady = false;
 let firebaseApp = null;
+let appCheck = null;
+let appCheckApi = null;
+let appCheckReady = false;
+let appCheckError = null;
 let authUser = null;
 let database = null;
 let dbApi = null;
@@ -28,11 +32,13 @@ export async function initializeFirebase() {
   try {
     const [
       { initializeApp },
+      { initializeAppCheck, ReCaptchaEnterpriseProvider, getToken },
       { getAuth, signInAnonymously },
       { getDatabase, ref, get, set, update, push, runTransaction },
       { getStorage, ref: storageRef, uploadBytesResumable, getDownloadURL, deleteObject }
     ] = await Promise.all([
       import("https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js"),
+      import("https://www.gstatic.com/firebasejs/12.14.0/firebase-app-check.js"),
       import("https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js"),
       import("https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js"),
       import("https://www.gstatic.com/firebasejs/12.14.0/firebase-storage.js")
@@ -40,6 +46,25 @@ export async function initializeFirebase() {
 
     const app = initializeApp(firebaseConfig);
     firebaseApp = app;
+
+    // App Check must be activated before Auth, Database, Storage or AI access.
+    // AI explicitly verifies that a usable token exists before reserving quota.
+    if (APP_CONFIG.appCheckSiteKey) {
+      try {
+        appCheck = initializeAppCheck(app, {
+          provider: new ReCaptchaEnterpriseProvider(APP_CONFIG.appCheckSiteKey),
+          isTokenAutoRefreshEnabled: true
+        });
+        appCheckApi = { getToken };
+        appCheckError = null;
+      } catch (error) {
+        appCheck = null;
+        appCheckApi = null;
+        appCheckError = error;
+        console.warn("Firebase App Check initialization failed:", error);
+      }
+    }
+
     const auth = getAuth(app);
     const credential = await signInAnonymously(auth);
 
@@ -51,7 +76,11 @@ export async function initializeFirebase() {
     firebaseReady = true;
     firebaseError = null;
 
-    emitFirebaseStatus({ ready: true, uid: authUser.uid });
+    emitFirebaseStatus({
+      ready: true,
+      uid: authUser.uid,
+      appCheck: getAppCheckStatus()
+    });
 
     return { ready: true, user: authUser };
   } catch (error) {
@@ -66,11 +95,63 @@ export async function initializeFirebase() {
 }
 
 export function getFirebaseStatus() {
-  return { ready: firebaseReady && !firebaseError, initialized: firebaseReady, user: authUser, error: firebaseError };
+  return {
+    ready: firebaseReady && !firebaseError,
+    initialized: firebaseReady,
+    user: authUser,
+    error: firebaseError,
+    appCheck: getAppCheckStatus()
+  };
 }
 
 export function getFirebaseApp() {
   return firebaseApp;
+}
+
+export function getAppCheckStatus() {
+  return {
+    required: Boolean(APP_CONFIG.aiRequireAppCheck),
+    configured: Boolean(APP_CONFIG.appCheckSiteKey),
+    initialized: Boolean(appCheck && appCheckApi),
+    ready: appCheckReady,
+    error: appCheckError
+  };
+}
+
+export async function ensureAppCheckToken() {
+  if (!APP_CONFIG.aiRequireAppCheck) {
+    return { token: "", skipped: true };
+  }
+
+  if (!APP_CONFIG.appCheckSiteKey) {
+    const error = new Error("Firebase App Check site key is missing from this build.");
+    error.code = "app-check/missing-site-key";
+    appCheckError = error;
+    throw error;
+  }
+
+  if (!appCheck || !appCheckApi?.getToken) {
+    const error = appCheckError || new Error("Firebase App Check has not initialized.");
+    if (!error.code) error.code = "app-check/not-initialized";
+    appCheckError = error;
+    throw error;
+  }
+
+  try {
+    const result = await appCheckApi.getToken(appCheck, false);
+    if (!result?.token) {
+      const error = new Error("Firebase App Check returned an empty token.");
+      error.code = "app-check/empty-token";
+      throw error;
+    }
+    appCheckReady = true;
+    appCheckError = null;
+    return result;
+  } catch (error) {
+    appCheckReady = false;
+    appCheckError = error;
+    throw error;
+  }
 }
 
 export async function getMemberByCode(code) {

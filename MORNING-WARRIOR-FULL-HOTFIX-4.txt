@@ -1,0 +1,42 @@
+MORNING WARRIOR v2 — NUTRITION AI BETA — FULL HOTFIX 4
+Master brand: CLOB
+Build date: 23 July 2026
+
+This is a complete replacement build. It does not require an earlier patch to
+be installed first.
+
+Fixed in this build:
+- Removed the visible `by CLOB` endorsement from every Morning Warrior logo
+  lockup and increased the Morning Warrior wordmark size on landing and topbar
+  surfaces.
+- Updated the PWA name and logo metadata to display Morning Warrior without the
+  endorsement.
+- Advanced the application entry module and PWA cache to Hotfix 4 so the
+  branding update replaces cached assets after deployment.
+- Prevented an older cached `js/config.js` from hiding the registered App Check
+  site key after deployment.
+- Changed JavaScript, CSS and JSON handling to network-first with offline cache
+  fallback.
+- Forced the Service Worker update check to bypass the HTTP cache and reload the
+  open app once when the new worker takes control.
+- Initialized Firebase App Check before Auth, Realtime Database, Storage and AI.
+- Verified an App Check token before reserving either member or project AI quota.
+- Kept the registered reCAPTCHA Enterprise public site key for
+  `workout-tracker-ten-bay.vercel.app`.
+- Kept the stable Programs and Packages implementation from Full Hotfix 2.
+- Kept the `gemini-3.5-flash-lite` model and AI limits of 3 per member per day
+  and 60 for the whole project per day.
+
+Install:
+1. Back up the current public folder.
+2. Replace the entire public root with all files and folders from this ZIP.
+3. Publish/deploy.
+4. Open the production PWA. It can reload itself once while Hotfix 4 takes
+   control; this is expected.
+5. Test one AI food-photo analysis on the production domain.
+6. Review Firebase App Check request metrics. Keep enforcement unchanged until
+   a valid production request has been confirmed.
+
+Firebase data remains under the existing `clob` paths. This build does not
+delete or migrate existing members, Programs, Packages, Workouts, Progress or
+Nutrition records.

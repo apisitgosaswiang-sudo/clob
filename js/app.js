@@ -150,11 +150,21 @@ async function bootstrap() {
 bootstrap();
 
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch((error) => {
-      console.warn("Service worker registration failed:", error);
-    });
+  let reloadingForServiceWorker = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloadingForServiceWorker) return;
+    reloadingForServiceWorker = true;
+    window.location.reload();
   });
+
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("./sw.js?v=hotfix-4", { updateViaCache: "none" })
+      .then((registration) => registration.update())
+      .catch((error) => {
+        console.warn("Service worker registration failed:", error);
+      });
+  }, { once: true });
 }
 
 
