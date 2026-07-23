@@ -14,6 +14,19 @@ The latest explicit Product Owner decision overrides an older conflicting one.
 - Emotion Design must respond to real time and user state, not random copy.
 - D-001 Design System is completed before new Nutrition UI.
 
+## 2026-07-23 — D-001 Design Reset
+
+- The first Patch-011 design package was not applied and is not a design
+  baseline.
+- Patch-011R supersedes that unshipped package.
+- The visual direction is `Athletic Luxury with Momentum`.
+- The interface is quiet and neutral by default. Strong color is reserved for
+  the next action, active progress and earned reward.
+- `Today's Mission` is the only visual hero on Member Today.
+- Workout, habits and navigation support the mission hierarchy instead of
+  competing with it.
+- Member Today is the reference screen used to validate D-001 before Nutrition.
+
 ## 2026-07-23 — Coach Session
 
 - No automatic Coach Session Timeout.

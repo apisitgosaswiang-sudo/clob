@@ -33,6 +33,13 @@ Implementation should be incremental:
 3. Member Home reference screen
 4. Daily Mission and Emotion Design pilot
 
+Reference implementation:
+
+- Patch-011R resets the unshipped first Patch-011 direction.
+- Member Today is the first reference screen.
+- Nutrition does not begin until the Product Owner accepts the reference
+  direction.
+
 ## Phase B — Nutrition
 
 Nutrition is coaching, not a calorie tracker.
