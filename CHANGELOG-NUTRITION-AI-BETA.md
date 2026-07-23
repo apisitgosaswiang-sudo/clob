@@ -44,8 +44,8 @@ not renamed, moved or deleted.
 - App product name is Morning Warrior under the CLOB master brand.
 - Browser title, install name, iOS title, visible wordmarks, icon and exported
   member-data filename now use Morning Warrior.
-- Public endorsement copy uses `Morning Warrior by CLOB` where ownership needs
-  to be explicit.
+- Hotfix 4 supersedes the original endorsement treatment: visible logo lockups
+  now use the larger `Morning Warrior` name without `by CLOB`.
 - Manifest `id`, Firebase root `clob`, local/session storage keys, browser event
   names and CSS namespaces remain unchanged to preserve installed-app identity
   and existing member data.

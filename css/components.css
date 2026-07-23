@@ -22,9 +22,9 @@
   align-items: center;
   gap: 9px;
   max-width: 100%;
-  font-size: .84rem;
+  font-size: 1.05rem;
   font-weight: 800;
-  letter-spacing: 0.055em;
+  letter-spacing: 0.025em;
   white-space: nowrap;
 }
 
@@ -42,22 +42,13 @@
 
 .brand-lockup {
   display: grid;
-  gap: 2px;
-  line-height: 1;
-}
-
-.brand-lockup small {
-  color: var(--muted);
-  font-size: .48rem;
-  font-weight: 750;
-  letter-spacing: .14em;
-  text-transform: uppercase;
+  line-height: 1.05;
 }
 
 .topbar .brand {
   gap: 7px;
-  font-size: .72rem;
-  letter-spacing: .03em;
+  font-size: .88rem;
+  letter-spacing: .015em;
 }
 
 .topbar .brand-mark {
@@ -65,10 +56,6 @@
   height: 32px;
   border-radius: 11px;
   font-size: .72rem;
-}
-
-.topbar .brand-lockup small {
-  font-size: .43rem;
 }
 
 .eyebrow {
