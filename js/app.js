@@ -26,10 +26,13 @@ import { renderMemberProgressPage } from "./member-progress-page.js";
 import { renderMemberWeeklyUpdatePage } from "./member-weekly-update-page.js";
 import { renderPackageManagement } from "./package-management.js";
 import { restoreCoachSession } from "./coach-session.js";
+import { renderNutritionPage } from "./nutrition-page.js";
+import { renderTrainerNutritionPage } from "./trainer-nutrition-page.js";
 
 registerRoute("/", renderLanding);
 registerRoute("/trainer-login", renderTrainerLogin);
 registerRoute("/member", renderMemberTodayPage);
+registerRoute("/nutrition", renderNutritionPage);
 registerRoute("/member-profile", renderMemberProfilePage);
 registerRoute("/member-weekly", renderMemberWeeklyUpdatePage);
 registerRoute("/beta-control", renderBetaControlPage);
@@ -47,6 +50,7 @@ registerPatternRoute(/^\/member-edit-([^/]+)$/, renderEditMemberPage);
 registerPatternRoute(/^\/member-package-([^/]+)$/, renderPackagePage);
 registerPatternRoute(/^\/member-progress-([^/]+)$/, renderMemberProgressPage);
 registerPatternRoute(/^\/member-detail-([^/]+)$/, renderMemberDetail);
+registerPatternRoute(/^\/trainer-nutrition-([^/]+)$/, renderTrainerNutritionPage);
 registerPatternRoute(/^\/weekly-checkins-([^/]+)$/, renderWeeklyCheckinPage);
 registerPatternRoute(/^\/progress-photos-([^/]+)$/, renderProgressPhotosPage);
 registerPatternRoute(/^\/progress-([^/]+)$/, renderProgressPage);
@@ -74,6 +78,12 @@ registerRoute("/404", () => {
   const memberMatch = path.match(/^\/member-detail-(\d{5})$/);
   if (memberMatch) {
     renderMemberDetail(memberMatch[1]);
+    return;
+  }
+
+  const trainerNutritionMatch = path.match(/^\/trainer-nutrition-(\d{5})$/);
+  if (trainerNutritionMatch) {
+    renderTrainerNutritionPage(trainerNutritionMatch[1]);
     return;
   }
 

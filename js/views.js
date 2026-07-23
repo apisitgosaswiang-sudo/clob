@@ -51,8 +51,8 @@ function getGreeting() {
 export function renderLanding() {
   page(`
     <div class="brand">
-      <span class="brand-mark">C</span>
-      <span>CLOB</span>
+      <span class="brand-mark">M</span>
+      <span class="brand-lockup"><span>Morning Warrior</span><small>by CLOB</small></span>
     </div>
 
     <section style="margin-top:34px">
@@ -281,8 +281,8 @@ export function renderTrainerLogin() {
     <div class="topbar">
       <button id="back-button" class="back-button" aria-label="ย้อนกลับ">←</button>
       <div class="brand">
-        <span class="brand-mark">C</span>
-        <span>CLOB</span>
+        <span class="brand-mark">M</span>
+        <span class="brand-lockup"><span>Morning Warrior</span><small>by CLOB</small></span>
       </div>
       <span style="width:42px"></span>
     </div>
@@ -437,8 +437,8 @@ export async function renderMemberDashboard() {
   page(`
     <section class="member-loading">
       <div class="brand">
-        <span class="brand-mark">C</span>
-        <span>CLOB</span>
+        <span class="brand-mark">M</span>
+        <span class="brand-lockup"><span>Morning Warrior</span><small>by CLOB</small></span>
       </div>
       <div class="loading-spinner" aria-label="กำลังโหลด"></div>
       <p>กำลังโหลดข้อมูลสมาชิก...</p>
@@ -611,8 +611,8 @@ export function renderTrainerPlaceholder() {
   page(`
     <div class="topbar">
       <div class="brand">
-        <span class="brand-mark">C</span>
-        <span>CLOB</span>
+        <span class="brand-mark">M</span>
+        <span class="brand-lockup"><span>Morning Warrior</span><small>by CLOB</small></span>
       </div>
       <button id="logout-button" class="button button-text">ออกจากระบบ</button>
     </div>
@@ -656,8 +656,8 @@ export function renderTrainerPlaceholder() {
 export function renderNotFound() {
   page(`
     <div class="brand">
-      <span class="brand-mark">C</span>
-      <span>CLOB</span>
+      <span class="brand-mark">M</span>
+      <span class="brand-lockup"><span>Morning Warrior</span><small>by CLOB</small></span>
     </div>
     <section style="margin-top:52px">
       <p class="eyebrow">404</p>

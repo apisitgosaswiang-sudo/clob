@@ -108,8 +108,8 @@ export async function renderMembersPage() {
   page(`
     <section class="trainer-loading">
       <div class="brand">
-        <span class="brand-mark">C</span>
-        <span>CLOB</span>
+        <span class="brand-mark">M</span>
+        <span class="brand-lockup"><span>Morning Warrior</span><small>by CLOB</small></span>
       </div>
       <div class="loading-spinner"></div>
       <p>กำลังโหลดสมาชิก...</p>
@@ -266,6 +266,7 @@ export async function renderMemberDetail(code) {
       <section class="detail-tabs">
         <button class="is-active">Info</button>
         <button id="weekly-checkin-tab">Weekly</button>
+        <button id="nutrition-tab">Nutrition</button>
         <button id="progress-tab">Progress</button>
         <button id="progress-photo-tab">Photos</button>
         <button id="package-tab">Package</button>
@@ -347,6 +348,7 @@ export async function renderMemberDetail(code) {
   document.querySelector("#member-detail-back").addEventListener("click", () => navigate("/members"));
   document.querySelector("#edit-member").addEventListener("click", () => navigate(`/member-edit-${member.code}`));
   document.querySelector("#weekly-checkin-tab").addEventListener("click", () => navigate(`/weekly-checkins-${member.code}`));
+  document.querySelector("#nutrition-tab").addEventListener("click", () => navigate(`/trainer-nutrition-${member.code}`));
   document.querySelector("#progress-tab").addEventListener("click", () => navigate(`/progress-${member.code}`));
   document.querySelector("#progress-photo-tab").addEventListener("click", () => navigate(`/progress-photos-${member.code}`));
   document.querySelector("#history-tab")?.addEventListener("click", () => toast("Workout History แบบเต็มจะมาใน Pack 05 Part 2"));

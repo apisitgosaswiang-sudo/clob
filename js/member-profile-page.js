@@ -59,6 +59,7 @@ export async function renderMemberProfilePage() {
       <nav class="bottom-nav clob-member-bottom-nav" aria-label="เมนูสมาชิก">
         <button class="nav-item" data-member-nav="home"><span>⌂</span><small>Home</small></button>
         <button class="nav-item" data-member-nav="workout"><span>✦</span><small>Workout</small></button>
+        <button class="nav-item" data-member-nav="nutrition"><span>◒</span><small>Nutrition</small></button>
         <button class="nav-item" data-member-nav="progress"><span>↗</span><small>Progress</small></button>
         <button class="nav-item is-active" data-member-nav="profile" aria-current="page"><span>○</span><small>Profile</small></button>
       </nav>
@@ -72,6 +73,7 @@ export async function renderMemberProfilePage() {
       const target = button.dataset.memberNav;
       if (target === "home") navigate("/member");
       if (target === "workout") navigate("/workout");
+      if (target === "nutrition") navigate("/nutrition");
       if (target === "progress") navigate(`/member-progress-${code}`);
       if (target === "profile") navigate("/member-profile");
     });

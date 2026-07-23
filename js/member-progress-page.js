@@ -159,7 +159,7 @@ function timelineMarkup() {
       <article class="clob-progress-empty">
         <span aria-hidden="true">↗</span>
         <strong>เริ่มต้นจากข้อมูลวันนี้</strong>
-        <p>บันทึกน้ำหนัก Body Fat หรือรอบเอว แล้ว CLOB จะสร้าง Timeline ให้คุณ</p>
+        <p>บันทึกน้ำหนัก Body Fat หรือรอบเอว แล้ว Morning Warrior จะสร้าง Timeline ให้คุณ</p>
         <button id="empty-checkin-action">บันทึก Check-in แรก</button>
       </article>
     `;
@@ -205,6 +205,7 @@ function bind() {
       const target = button.dataset.memberNav;
       if (target === "home") navigate("/member");
       if (target === "workout") navigate("/workout");
+      if (target === "nutrition") navigate("/nutrition");
       if (target === "profile") navigate("/member-profile");
     });
   });
@@ -376,6 +377,7 @@ function bottomNav() {
     <nav class="bottom-nav" aria-label="เมนูสมาชิก">
       <button class="nav-item" data-member-nav="home"><span>⌂</span><small>Home</small></button>
       <button class="nav-item" data-member-nav="workout"><span>✦</span><small>Workout</small></button>
+      <button class="nav-item" data-member-nav="nutrition"><span>◒</span><small>Nutrition</small></button>
       <button class="nav-item is-active"><span>↗</span><small>Progress</small></button>
       <button class="nav-item" data-member-nav="profile"><span>○</span><small>Profile</small></button>
     </nav>

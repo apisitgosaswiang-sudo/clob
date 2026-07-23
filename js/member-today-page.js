@@ -9,11 +9,13 @@ import { loadCheckins, latestValue, calculateChange, formatMetric } from "./chec
 import { chooseHomePriority } from "./dynamic-home.js";
 import { formatToday } from "./emotion-design.js";
 import { escapeHtml, renderAvatar } from "./utils.js";
+import { dateKey, loadNutritionDay } from "./nutrition.js";
 
 const app = document.querySelector("#app");
 let member = null;
 let state = null;
 let checkins = [];
+let nutritionDay = null;
 let code = "";
 
 export async function renderMemberTodayPage() {
@@ -32,10 +34,11 @@ export async function renderMemberTodayPage() {
     </main>
   `;
 
-  [member, state, checkins] = await Promise.all([
+  [member, state, checkins, nutritionDay] = await Promise.all([
     loadMember(code),
     loadTodayState(code),
-    loadCheckins(code)
+    loadCheckins(code),
+    loadNutritionDay(code, dateKey())
   ]);
 
   render();
@@ -50,6 +53,11 @@ function render() {
       : "not_started";
   const missions = getMissionTasks(state.tasks, workoutStatus === "completed");
   const priority = chooseHomePriority({
+    nutrition: nutritionDay?.target ? {
+      targetCalories: nutritionDay.target.calories,
+      consumedCalories: nutritionDay.summary.calories,
+      dayComplete: false
+    } : null,
     workoutStatus,
     workoutTitle: member.workout.title,
     missions
@@ -91,6 +99,7 @@ function render() {
           </div>
 
           <div class="clob-home-card-stack">
+            ${priority.type === "nutrition" ? "" : nutritionCardMarkup()}
             ${priority.type === "workout" ? "" : workoutCardMarkup(workoutStatus)}
             ${progressCardMarkup(weight, weightChange)}
           </div>
@@ -141,6 +150,10 @@ function priorityMarkup(priority, workoutSession) {
           <span>${escapeHtml(calorieState.label)}</span>
           <strong>${calorieState.displayValue.toLocaleString("en-US")}</strong>
           <small>kcal</small>
+        </div>
+        <div class="clob-priority-nutrition-meta">
+          <span>ทานแล้ว ${Number(nutritionDay.summary.calories || 0).toLocaleString("en-US")} / ${Number(nutritionDay.target.calories || 0).toLocaleString("en-US")} kcal</span>
+          <span>Protein ${formatMacro(nutritionDay.summary.protein)} / ${formatMacro(nutritionDay.target.protein)} g</span>
         </div>
         <button class="clob-priority-action" data-home-route="nutrition">
           เพิ่มอาหาร <span aria-hidden="true">→</span>
@@ -217,6 +230,35 @@ function priorityMarkup(priority, workoutSession) {
       <h2>Recovery is part of the plan.</h2>
       <p>วันนี้ไม่มีภารกิจค้าง พักให้เต็มที่แล้วกลับมาแข็งแรงกว่าเดิม</p>
     </article>
+  `;
+}
+
+function nutritionCardMarkup() {
+  if (!nutritionDay?.target) {
+    return `
+      <button class="clob-home-data-card" data-home-route="nutrition">
+        <span class="clob-data-icon">N</span>
+        <span class="clob-data-copy">
+          <small>NUTRITION</small>
+          <strong>${formatMacro(nutritionDay?.summary?.calories || 0)} kcal</strong>
+          <span>เทรนเนอร์ยังไม่ได้ตั้งเป้าหมาย</span>
+        </span>
+        <span class="clob-data-state">→</span>
+      </button>
+    `;
+  }
+
+  const remaining = Number(nutritionDay.summary.remainingCalories || 0);
+  return `
+    <button class="clob-home-data-card" data-home-route="nutrition">
+      <span class="clob-data-icon">N</span>
+      <span class="clob-data-copy">
+        <small>NUTRITION</small>
+        <strong>${remaining < 0 ? "เกิน" : "เหลือ"} ${Math.abs(Math.round(remaining)).toLocaleString("en-US")} kcal</strong>
+        <span>Protein ${formatMacro(nutritionDay.summary.protein)} / ${formatMacro(nutritionDay.target.protein)} g</span>
+      </span>
+      <span class="clob-data-state">→</span>
+    </button>
   `;
 }
 
@@ -311,6 +353,7 @@ function bind() {
   document.querySelectorAll("[data-home-route]").forEach((button) => {
     button.addEventListener("click", () => {
       if (button.dataset.homeRoute === "workout") openWorkout();
+      if (button.dataset.homeRoute === "nutrition") navigate("/nutrition");
       if (button.dataset.homeRoute === "progress") navigate(`/member-progress-${code}`);
     });
   });
@@ -320,6 +363,7 @@ function bind() {
       const target = button.dataset.memberNav;
       if (target === "home") navigate("/member");
       if (target === "workout") openWorkout();
+      if (target === "nutrition") navigate("/nutrition");
       if (target === "progress") navigate(`/member-progress-${code}`);
       if (target === "profile") navigate("/member-profile");
     });
@@ -361,6 +405,10 @@ function memberBottomNavMarkup() {
         <span>✦</span>
         <small>Workout</small>
       </button>
+      <button class="nav-item" data-member-nav="nutrition">
+        <span>◒</span>
+        <small>Nutrition</small>
+      </button>
       <button class="nav-item" data-member-nav="progress">
         <span>↗</span>
         <small>Progress</small>
@@ -371,6 +419,13 @@ function memberBottomNavMarkup() {
       </button>
     </nav>
   `;
+}
+
+function formatMacro(value) {
+  const number = Number(value || 0);
+  return number.toLocaleString("en-US", {
+    maximumFractionDigits: number % 1 ? 1 : 0
+  });
 }
 
 function toast(message) {

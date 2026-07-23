@@ -49,7 +49,8 @@ export async function exportMemberData(memberCode) {
   }
 
   const exportData = {
-    product: "CLOB",
+    product: "Morning Warrior",
+    brand: "CLOB",
     schemaVersion: DATA_SCHEMA_VERSION,
     releaseChannel: RELEASE_CHANNEL,
     memberCode,
@@ -58,7 +59,7 @@ export async function exportMemberData(memberCode) {
   };
 
   downloadJson(
-    `CLOB-member-${memberCode}-${new Date().toISOString().slice(0, 10)}.json`,
+    `Morning-Warrior-member-${memberCode}-${new Date().toISOString().slice(0, 10)}.json`,
     exportData
   );
 

@@ -1,12 +1,28 @@
 import { firebaseConfig } from "./config.js";
 
 let firebaseReady = false;
+let firebaseApp = null;
 let authUser = null;
 let database = null;
 let dbApi = null;
 let storage = null;
 let storageApi = null;
 let firebaseError = null;
+
+function emitFirebaseStatus(detail) {
+  window.dispatchEvent(new CustomEvent("clob:firebase-status", { detail }));
+}
+
+function markFirebaseOperationHealthy() {
+  if (!firebaseError) return;
+  firebaseError = null;
+  emitFirebaseStatus({ ready: true, uid: authUser?.uid || null });
+}
+
+function markFirebaseOperationFailed(error) {
+  firebaseError = error;
+  emitFirebaseStatus({ ready: false, error });
+}
 
 export async function initializeFirebase() {
   try {
@@ -16,13 +32,14 @@ export async function initializeFirebase() {
       { getDatabase, ref, get, set, update, push, runTransaction },
       { getStorage, ref: storageRef, uploadBytesResumable, getDownloadURL, deleteObject }
     ] = await Promise.all([
-      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"),
-      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js"),
-      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js"),
-      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js")
+      import("https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js"),
+      import("https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js"),
+      import("https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js"),
+      import("https://www.gstatic.com/firebasejs/12.14.0/firebase-storage.js")
     ]);
 
     const app = initializeApp(firebaseConfig);
+    firebaseApp = app;
     const auth = getAuth(app);
     const credential = await signInAnonymously(auth);
 
@@ -34,9 +51,7 @@ export async function initializeFirebase() {
     firebaseReady = true;
     firebaseError = null;
 
-    window.dispatchEvent(new CustomEvent("clob:firebase-status", {
-      detail: { ready: true, uid: authUser.uid }
-    }));
+    emitFirebaseStatus({ ready: true, uid: authUser.uid });
 
     return { ready: true, user: authUser };
   } catch (error) {
@@ -44,16 +59,18 @@ export async function initializeFirebase() {
     firebaseError = error;
     console.warn("Firebase initialization failed:", error);
 
-    window.dispatchEvent(new CustomEvent("clob:firebase-status", {
-      detail: { ready: false, error }
-    }));
+    emitFirebaseStatus({ ready: false, error });
 
     return { ready: false, error };
   }
 }
 
 export function getFirebaseStatus() {
-  return { ready: firebaseReady, user: authUser, error: firebaseError };
+  return { ready: firebaseReady && !firebaseError, initialized: firebaseReady, user: authUser, error: firebaseError };
+}
+
+export function getFirebaseApp() {
+  return firebaseApp;
 }
 
 export async function getMemberByCode(code) {
@@ -75,9 +92,11 @@ export async function saveMemberRecord(code, payload) {
   if (!firebaseReady || !database || !dbApi) return false;
   try {
     await dbApi.update(dbApi.ref(database, `clob/members/${code}`), payload);
+    markFirebaseOperationHealthy();
     return true;
   } catch (error) {
     console.warn("Could not save member:", error);
+    markFirebaseOperationFailed(error);
     return false;
   }
 }
@@ -276,6 +295,296 @@ export async function saveWorkoutSession(code, sessionId, payload) {
   }
 }
 
+export async function getNutritionTargets(memberCode) {
+  if (!firebaseReady || !database || !dbApi) return null;
+  try {
+    const snapshot = await dbApi.get(
+      dbApi.ref(database, `clob/nutritionTargets/${memberCode}`)
+    );
+    markFirebaseOperationHealthy();
+    return snapshot.exists() ? snapshot.val() : {};
+  } catch (error) {
+    console.warn("Could not load nutrition targets:", error);
+    markFirebaseOperationFailed(error);
+    return null;
+  }
+}
+
+export async function saveNutritionTarget(memberCode, targetId, payload) {
+  if (!firebaseReady || !database || !dbApi) return false;
+  try {
+    await dbApi.set(
+      dbApi.ref(database, `clob/nutritionTargets/${memberCode}/${targetId}`),
+      payload
+    );
+    markFirebaseOperationHealthy();
+    return true;
+  } catch (error) {
+    console.warn("Could not save nutrition target:", error);
+    markFirebaseOperationFailed(error);
+    return false;
+  }
+}
+
+export async function getNutritionMeals(memberCode, dateKey) {
+  if (!firebaseReady || !database || !dbApi) return null;
+  try {
+    const snapshot = await dbApi.get(
+      dbApi.ref(database, `clob/nutritionLogs/${memberCode}/${dateKey}`)
+    );
+    markFirebaseOperationHealthy();
+    return snapshot.exists() ? snapshot.val() : {};
+  } catch (error) {
+    console.warn("Could not load nutrition meals:", error);
+    markFirebaseOperationFailed(error);
+    return null;
+  }
+}
+
+export async function saveNutritionMeal(memberCode, dateKey, mealId, payload) {
+  if (!firebaseReady || !database || !dbApi) return false;
+  try {
+    await dbApi.set(
+      dbApi.ref(database, `clob/nutritionLogs/${memberCode}/${dateKey}/${mealId}`),
+      payload
+    );
+    markFirebaseOperationHealthy();
+    return true;
+  } catch (error) {
+    console.warn("Could not save nutrition meal:", error);
+    markFirebaseOperationFailed(error);
+    return false;
+  }
+}
+
+export async function getPersonalFoodLibrary(memberCode) {
+  if (!firebaseReady || !database || !dbApi) return null;
+  try {
+    const snapshot = await dbApi.get(
+      dbApi.ref(database, `clob/personalFoodLibrary/${memberCode}`)
+    );
+    return snapshot.exists() ? snapshot.val() : {};
+  } catch (error) {
+    console.warn("Could not load personal food library:", error);
+    return null;
+  }
+}
+
+export async function savePersonalFood(memberCode, foodId, payload) {
+  if (!firebaseReady || !database || !dbApi) return false;
+  try {
+    await dbApi.set(
+      dbApi.ref(database, `clob/personalFoodLibrary/${memberCode}/${foodId}`),
+      payload
+    );
+    return true;
+  } catch (error) {
+    console.warn("Could not save personal food:", error);
+    return false;
+  }
+}
+
+export async function getNutritionFeedback(memberCode, dateKey) {
+  if (!firebaseReady || !database || !dbApi) return null;
+  try {
+    const snapshot = await dbApi.get(
+      dbApi.ref(database, `clob/nutritionFeedback/${memberCode}/${dateKey}`)
+    );
+    return snapshot.exists() ? snapshot.val() : {};
+  } catch (error) {
+    console.warn("Could not load nutrition feedback:", error);
+    return null;
+  }
+}
+
+export async function saveNutritionFeedback(memberCode, dateKey, feedbackId, payload) {
+  if (!firebaseReady || !database || !dbApi) return false;
+  try {
+    await dbApi.set(
+      dbApi.ref(database, `clob/nutritionFeedback/${memberCode}/${dateKey}/${feedbackId}`),
+      payload
+    );
+    return true;
+  } catch (error) {
+    console.warn("Could not save nutrition feedback:", error);
+    return false;
+  }
+}
+
+export async function getAiFoodCache(memberCode, fingerprint) {
+  if (!firebaseReady || !database || !dbApi) return null;
+  try {
+    const snapshot = await dbApi.get(
+      dbApi.ref(database, `clob/aiFoodCache/${memberCode}/${fingerprint}`)
+    );
+    return snapshot.exists() ? snapshot.val() : null;
+  } catch (error) {
+    console.warn("Could not load AI food cache:", error);
+    return null;
+  }
+}
+
+export async function saveAiFoodCache(memberCode, fingerprint, payload) {
+  if (!firebaseReady || !database || !dbApi) return false;
+  try {
+    await dbApi.set(
+      dbApi.ref(database, `clob/aiFoodCache/${memberCode}/${fingerprint}`),
+      payload
+    );
+    return true;
+  } catch (error) {
+    console.warn("Could not save AI food cache:", error);
+    return false;
+  }
+}
+
+export async function getAiFoodUsage(dateKey) {
+  if (!firebaseReady || !database || !dbApi) return null;
+  try {
+    const snapshot = await dbApi.get(
+      dbApi.ref(database, `clob/aiFoodUsage/${dateKey}`)
+    );
+    return snapshot.exists() ? snapshot.val() : {};
+  } catch (error) {
+    console.warn("Could not load AI food usage:", error);
+    return null;
+  }
+}
+
+export function calculateNextAiFoodUsage(
+  current,
+  memberCode,
+  { memberLimit = 3, projectLimit = 60, uid = "", now = Date.now() } = {}
+) {
+  const usage = current && typeof current === "object" ? current : {};
+  const total = Number(usage.total || 0);
+  const members = usage.members && typeof usage.members === "object"
+    ? usage.members
+    : {};
+  const memberUsage = members[memberCode] && typeof members[memberCode] === "object"
+    ? members[memberCode]
+    : {};
+  const memberCount = Number(memberUsage.count || 0);
+
+  if (memberCount >= memberLimit) {
+    return { allowed: false, reason: "member_limit", value: usage };
+  }
+  if (total >= projectLimit) {
+    return { allowed: false, reason: "project_limit", value: usage };
+  }
+
+  return {
+    allowed: true,
+    reason: "",
+    value: {
+      ...usage,
+      total: total + 1,
+      members: {
+        ...members,
+        [memberCode]: {
+          ...memberUsage,
+          count: memberCount + 1,
+          lastUsedAt: now,
+          lastUid: uid
+        }
+      },
+      updatedAt: now
+    }
+  };
+}
+
+export function calculateReleasedAiFoodUsage(
+  current,
+  memberCode,
+  { now = Date.now() } = {}
+) {
+  const usage = current && typeof current === "object" ? current : {};
+  const total = Number(usage.total || 0);
+  const members = usage.members && typeof usage.members === "object"
+    ? usage.members
+    : {};
+  const memberUsage = members[memberCode] && typeof members[memberCode] === "object"
+    ? members[memberCode]
+    : {};
+  const memberCount = Number(memberUsage.count || 0);
+
+  if (memberCount <= 0) return usage;
+
+  return {
+    ...usage,
+    total: Math.max(0, total - 1),
+    members: {
+      ...members,
+      [memberCode]: {
+        ...memberUsage,
+        count: Math.max(0, memberCount - 1),
+        lastReleasedAt: now
+      }
+    },
+    updatedAt: now
+  };
+}
+
+export async function reserveAiFoodUsage(
+  memberCode,
+  dateKey,
+  { memberLimit = 3, projectLimit = 60 } = {}
+) {
+  if (!firebaseReady || !database || !dbApi || !authUser) {
+    return { allowed: false, reason: "firebase_unavailable" };
+  }
+
+  let denialReason = "";
+  try {
+    const result = await dbApi.runTransaction(
+      dbApi.ref(database, `clob/aiFoodUsage/${dateKey}`),
+      (current) => {
+        const decision = calculateNextAiFoodUsage(current, memberCode, {
+          memberLimit,
+          projectLimit,
+          uid: authUser.uid
+        });
+        if (!decision.allowed) {
+          denialReason = decision.reason;
+          return;
+        }
+        return decision.value;
+      },
+      { applyLocally: false }
+    );
+
+    if (!result.committed) {
+      return { allowed: false, reason: denialReason || "quota_unavailable" };
+    }
+
+    const value = result.snapshot.val() || {};
+    return {
+      allowed: true,
+      total: Number(value.total || 0),
+      memberCount: Number(value.members?.[memberCode]?.count || 0)
+    };
+  } catch (error) {
+    console.warn("Could not reserve AI food usage:", error);
+    return { allowed: false, reason: "quota_unavailable", error };
+  }
+}
+
+export async function releaseAiFoodUsage(memberCode, dateKey) {
+  if (!firebaseReady || !database || !dbApi || !authUser) return false;
+
+  try {
+    const result = await dbApi.runTransaction(
+      dbApi.ref(database, `clob/aiFoodUsage/${dateKey}`),
+      (current) => calculateReleasedAiFoodUsage(current, memberCode),
+      { applyLocally: false }
+    );
+    return Boolean(result.committed);
+  } catch (error) {
+    console.warn("Could not release failed AI food usage:", error);
+    return false;
+  }
+}
+
 
 export async function getAllMembers() {
   if (!firebaseReady || !database || !dbApi) return null;
@@ -284,9 +593,11 @@ export async function getAllMembers() {
     const snapshot = await dbApi.get(
       dbApi.ref(database, "clob/members")
     );
-    return snapshot.exists() ? snapshot.val() : null;
+    markFirebaseOperationHealthy();
+    return snapshot.exists() ? snapshot.val() : {};
   } catch (error) {
     console.warn("Could not load members:", error);
+    markFirebaseOperationFailed(error);
     return null;
   }
 }
@@ -298,9 +609,11 @@ export async function getWorkoutSessions() {
     const snapshot = await dbApi.get(
       dbApi.ref(database, "clob/workoutSessions")
     );
-    return snapshot.exists() ? snapshot.val() : null;
+    markFirebaseOperationHealthy();
+    return snapshot.exists() ? snapshot.val() : {};
   } catch (error) {
     console.warn("Could not load workout sessions:", error);
+    markFirebaseOperationFailed(error);
     return null;
   }
 }
@@ -310,9 +623,11 @@ export async function getPrograms() {
   if (!firebaseReady || !database || !dbApi) return null;
   try {
     const snapshot = await dbApi.get(dbApi.ref(database, "clob/programs"));
-    return snapshot.exists() ? snapshot.val() : null;
+    markFirebaseOperationHealthy();
+    return snapshot.exists() ? snapshot.val() : {};
   } catch (error) {
     console.warn("Could not load programs:", error);
+    markFirebaseOperationFailed(error);
     return null;
   }
 }
@@ -324,9 +639,11 @@ export async function saveProgram(programId, payload) {
       dbApi.ref(database, `clob/programs/${programId}`),
       payload
     );
+    markFirebaseOperationHealthy();
     return true;
   } catch (error) {
     console.warn("Could not save program:", error);
+    markFirebaseOperationFailed(error);
     return false;
   }
 }
@@ -352,9 +669,11 @@ export async function assignProgramToMember(memberCode, payload) {
       dbApi.ref(database, `clob/memberPrograms/${memberCode}`),
       payload
     );
+    markFirebaseOperationHealthy();
     return true;
   } catch (error) {
     console.warn("Could not assign program:", error);
+    markFirebaseOperationFailed(error);
     return false;
   }
 }
@@ -765,9 +1084,11 @@ export async function getPackages() {
   if (!firebaseReady || !database || !dbApi) return null;
   try {
     const snapshot = await dbApi.get(dbApi.ref(database, "clob/packages"));
-    return snapshot.exists() ? snapshot.val() : null;
+    markFirebaseOperationHealthy();
+    return snapshot.exists() ? snapshot.val() : {};
   } catch (error) {
     console.warn("Could not load packages:", error);
+    markFirebaseOperationFailed(error);
     return null;
   }
 }
@@ -776,9 +1097,11 @@ export async function savePackageRecord(packageId, payload) {
   if (!firebaseReady || !database || !dbApi) return false;
   try {
     await dbApi.set(dbApi.ref(database, `clob/packages/${packageId}`), payload);
+    markFirebaseOperationHealthy();
     return true;
   } catch (error) {
     console.warn("Could not save package:", error);
+    markFirebaseOperationFailed(error);
     return false;
   }
 }
