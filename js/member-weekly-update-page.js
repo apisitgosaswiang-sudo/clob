@@ -1,6 +1,7 @@
 import { navigate } from "./router.js";
 import { loadMember } from "./member.js";
 import { createBlankWeeklyCheckin, loadWeeklyCheckins, saveWeekly } from "./weekly-checkins.js";
+import { toggleTask } from "./member-experience.js";
 import { escapeHtml, renderAvatar } from "./utils.js";
 
 const app = document.querySelector("#app");
@@ -38,6 +39,7 @@ export async function renderMemberWeeklyUpdatePage() {
     event.preventDefault(); const d=new FormData(event.currentTarget); const button=event.currentTarget.querySelector("button"); button.disabled=true;
     try {
       await saveWeekly(code,{...draft,weekStart:d.get("weekStart"),weight:d.get("weight"),sleep:Number(d.get("sleep")),stress:Number(d.get("stress")),energy:Number(d.get("energy")),hunger:Number(d.get("hunger")),workoutAdherence:Number(d.get("workoutAdherence")),nutritionAdherence:Number(d.get("nutritionAdherence")),wins:String(d.get("wins")||"").trim(),challenges:String(d.get("challenges")||"").trim(),coachQuestion:String(d.get("coachQuestion")||"").trim(),reviewStatus:"submitted"});
+      await toggleTask(code, "checkin", true);
       const toast=document.querySelector("#weekly-member-toast");toast.textContent="ส่ง Weekly Update แล้ว";toast.hidden=false;setTimeout(()=>navigate("/member"),700);
     } catch(error){ const toast=document.querySelector("#weekly-member-toast");toast.textContent=error?.message||"ส่งข้อมูลไม่สำเร็จ";toast.hidden=false;button.disabled=false; }
   };

@@ -30,24 +30,29 @@ export async function loadCheckins(memberCode) {
   const remote = await getMemberCheckins(memberCode);
   if (remote) {
     saveLocal(memberCode, remote);
-    return Object.values(remote).sort(sortNewest);
+    return Object.values(remote).filter(isMetricCheckin).sort(sortNewest);
   }
 
   const local = loadLocal(memberCode);
-  return Object.values(local).sort(sortNewest);
+  return Object.values(local).filter(isMetricCheckin).sort(sortNewest);
 }
 
 export async function saveCheckin(memberCode, checkin) {
   const now = Date.now();
+  const local = loadLocal(memberCode);
+  const sameDate = Object.values(local).find((item) => {
+    return isMetricCheckin(item) && item.date === checkin.date;
+  });
+  const existing = checkin.id ? local[checkin.id] : sameDate;
   const value = {
+    ...(existing || {}),
     ...checkin,
-    id: checkin.id || createCheckinId(checkin.date),
+    id: checkin.id || sameDate?.id || createCheckinId(checkin.date),
     memberCode,
-    createdAt: checkin.createdAt || now,
+    createdAt: checkin.createdAt || existing?.createdAt || now,
     updatedAt: now
   };
 
-  const local = loadLocal(memberCode);
   local[value.id] = value;
   saveLocal(memberCode, local);
   await saveMemberCheckin(memberCode, value.id, value);
@@ -86,6 +91,22 @@ export function formatMetric(value, unit) {
 
 export function createCheckinId(date) {
   return `${String(date || "checkin").replaceAll("-", "")}-${Date.now().toString(36)}`;
+}
+
+export function isMetricCheckin(item) {
+  if (!item || typeof item !== "object") return false;
+  return [
+    "weight",
+    "bodyFat",
+    "skeletalMuscle",
+    "chest",
+    "waist",
+    "hip",
+    "arm",
+    "thigh",
+    "note",
+    "date"
+  ].some((field) => item[field] !== "" && item[field] !== null && item[field] !== undefined);
 }
 
 function sortNewest(a, b) {

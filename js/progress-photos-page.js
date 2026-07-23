@@ -49,7 +49,7 @@ export async function renderProgressPhotosPage(code) {
   }
 
   pending = {};
-  savedPhotoSets = await getProgressPhotoSets(code) || {};
+  savedPhotoSets = filterPhotoSets(await getProgressPhotoSets(code));
   render();
 }
 
@@ -105,6 +105,14 @@ function trainerGalleryMarkup() {
   const sets = Object.values(savedPhotoSets || {}).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
   if (!sets.length) return `<section class="photo-readonly-empty card"><strong>สมาชิกยังไม่ได้อัปโหลดรูป</strong><p>เมื่อสมาชิกบันทึกรูปแล้ว รูปจะปรากฏที่นี่</p></section>`;
   return `<section class="trainer-photo-history">${sets.map(set=>`<article class="trainer-photo-set card"><strong>${new Date(set.createdAt||Date.now()).toLocaleDateString("th-TH")}</strong><div class="progress-photo-grid readonly">${slots.map(slot=>{const x=set.photos?.[slot];return `<figure class="readonly-photo">${x?.url?`<a href="${esc(x.url)}" target="_blank"><img src="${esc(x.url)}" alt="${slot}"></a>`:`<div class="photo-missing">${slot}</div>`}<figcaption>${slot}</figcaption></figure>`;}).join("")}</div></article>`).join("")}</section>`;
+}
+
+function filterPhotoSets(value) {
+  return Object.fromEntries(
+    Object.entries(value || {}).filter(([, item]) => {
+      return Object.values(item?.photos || {}).some((photo) => Boolean(photo?.url));
+    })
+  );
 }
 
 function slotMarkup(slot) {
@@ -290,7 +298,10 @@ async function uploadAll() {
   try {
     for (let index = 0; index < entries.length; index += 1) {
       const [slot, value] = entries[index];
-      const filename = `${slot}_${Date.now()}_${index}.webp`;
+      const extension = value.blob.type === "image/jpeg"
+        ? "jpg"
+        : value.blob.type === "image/png" ? "png" : "webp";
+      const filename = `${slot}_${Date.now()}_${index}.${extension}`;
       const result = await uploadImage(
         `members/${member.code}/checkins/${checkinId}/${filename}`,
         value.blob,
@@ -302,12 +313,15 @@ async function uploadAll() {
       uploaded[slot] = result;
     }
 
-    await saveProgressPhotoSet(member.code, checkinId, {
+    const metadataSaved = await saveProgressPhotoSet(member.code, checkinId, {
       id: checkinId,
       createdAt: Date.now(),
       createdDate: new Date().toISOString(),
       photos: uploaded
     });
+    if (!metadataSaved) {
+      throw new Error("อัปโหลดรูปแล้ว แต่บันทึกข้อมูลรูปลง Firebase ไม่สำเร็จ");
+    }
 
     Object.values(pending).forEach((value) => URL.revokeObjectURL(value.previewUrl));
     pending = {};

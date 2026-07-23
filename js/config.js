@@ -1,6 +1,6 @@
 export const APP_CONFIG = {
   appName: "CLOB",
-  version: "CLOB v2 · Patch-011R",
+  version: "CLOB v2 · Patch-011F",
   coachId: "0409",
   coachPinLength: 6,
   memberCodeLength: 5,

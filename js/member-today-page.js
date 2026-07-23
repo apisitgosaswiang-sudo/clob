@@ -3,19 +3,17 @@ import { loadMember, createWorkoutSession, getActiveWorkoutSession } from "./mem
 import {
   loadTodayState,
   updateHabit,
-  toggleTask,
-  calculateHabitScore
+  toggleTask
 } from "./member-experience.js";
-import {
-  formatToday,
-  getEmotionMessage,
-  missionProgress
-} from "./emotion-design.js";
+import { loadCheckins, latestValue, calculateChange, formatMetric } from "./checkins.js";
+import { chooseHomePriority } from "./dynamic-home.js";
+import { formatToday } from "./emotion-design.js";
 import { escapeHtml, renderAvatar } from "./utils.js";
 
 const app = document.querySelector("#app");
 let member = null;
 let state = null;
+let checkins = [];
 let code = "";
 
 export async function renderMemberTodayPage() {
@@ -26,44 +24,49 @@ export async function renderMemberTodayPage() {
   }
 
   app.innerHTML = `
-    <main class="page member-page clob-v2-today">
+    <main class="page member-page clob-dynamic-home">
       <section class="member-loading">
         <div class="loading-spinner"></div>
-        <p>กำลังเตรียม Mission วันนี้...</p>
+        <p>กำลังเตรียม Home วันนี้...</p>
       </section>
     </main>
   `;
 
-  [member, state] = await Promise.all([
+  [member, state, checkins] = await Promise.all([
     loadMember(code),
-    loadTodayState(code)
+    loadTodayState(code),
+    loadCheckins(code)
   ]);
 
   render();
 }
 
 function render() {
-  const habitScore = calculateHabitScore(state);
-  const workoutActive = getActiveWorkoutSession(code);
-  const workoutDone = workoutActive?.status === "completed";
-  const missions = getMissionTasks(state.tasks, workoutDone);
-  const completedMissions = missions.filter((task) => task.completed).length;
-  const progress = missionProgress(completedMissions, missions.length);
-  const nextMission = missions.find((task) => !task.completed) || null;
-  const allComplete = missions.length > 0 && completedMissions === missions.length;
-  const emotion = getEmotionMessage({
-    completed: completedMissions,
-    total: missions.length,
-    workoutDone
+  const workoutSession = getActiveWorkoutSession(code);
+  const workoutStatus = workoutSession?.status === "completed"
+    ? "completed"
+    : workoutSession?.status === "in_progress"
+      ? "in_progress"
+      : "not_started";
+  const missions = getMissionTasks(state.tasks, workoutStatus === "completed");
+  const priority = chooseHomePriority({
+    workoutStatus,
+    workoutTitle: member.workout.title,
+    missions
   });
+  const weight = latestValue(checkins, "weight");
+  const weightChange = calculateChange(checkins, "weight");
+  const water = state.habits.find((item) => item.id === "water");
+  const sleep = state.habits.find((item) => item.id === "sleep");
 
   app.innerHTML = `
-    <main class="page member-page clob-v2-today">
-      <div class="member-screen clob-today-shell">
-        <header class="clob-today-header">
+    <main class="page member-page clob-dynamic-home">
+      <div class="clob-home-shell">
+        <header class="clob-home-header">
           <div>
-            <span class="clob-wordmark">CLOB</span>
-            <p class="clob-today-date">${escapeHtml(formatToday())}</p>
+            <p>${escapeHtml(getGreeting())}</p>
+            <h1>${escapeHtml(member.greetingName)}</h1>
+            <span>${escapeHtml(formatToday(new Date(), "th-TH"))}</span>
           </div>
           <button id="profile-button" class="avatar-button" aria-label="เปิดโปรไฟล์ของ ${escapeHtml(member.greetingName)}">
             ${renderAvatar({
@@ -74,126 +77,204 @@ function render() {
           </button>
         </header>
 
-        <section class="clob-emotion" data-emotion-tone="${escapeHtml(emotion.tone)}">
-          <p class="clob-kicker">${escapeHtml(emotion.eyebrow)} · ${escapeHtml(member.greetingName)}</p>
-          <h1>${escapeHtml(emotion.title)}</h1>
-          <p>${escapeHtml(emotion.body)}</p>
+        <section class="clob-home-focus" aria-label="สิ่งสำคัญที่สุดตอนนี้">
+          ${priorityMarkup(priority, workoutSession)}
         </section>
 
-        <section class="clob-mission-hero ${allComplete ? "is-complete" : ""}" aria-labelledby="today-mission-title">
-          <div class="clob-mission-head">
+        <section class="clob-home-section" aria-labelledby="home-today-title">
+          <div class="clob-home-section-head">
             <div>
-              <p class="clob-kicker">TODAY'S MISSION</p>
-              <h2 id="today-mission-title">${missions.length ? `${completedMissions} of ${missions.length} complete` : "Nothing pending"}</h2>
+              <p class="clob-kicker">TODAY</p>
+              <h2 id="home-today-title">ภาพรวมวันนี้</h2>
             </div>
-            <div
-              class="clob-mission-ring"
-              style="--mission-angle:${progress * 3.6}deg"
-              role="img"
-              aria-label="Mission progress ${progress}%"
-            >
-              <span class="clob-ring-copy">
-                <strong>${progress}%</strong>
-                <small>DONE</small>
-              </span>
-            </div>
+            <span>${missions.filter((item) => item.completed).length}/${missions.length || 0}</span>
           </div>
 
-          <div class="clob-progress-track" aria-hidden="true">
-            <span style="--clob-progress-value:${progress}%"></span>
+          <div class="clob-home-card-stack">
+            ${priority.type === "workout" ? "" : workoutCardMarkup(workoutStatus)}
+            ${progressCardMarkup(weight, weightChange)}
           </div>
-
-          ${missions.length
-            ? `<div class="clob-mission-list">
-                ${missions.map((task) => missionMarkup(task, task.id === nextMission?.id)).join("")}
-              </div>`
-            : `<div class="clob-empty-state">
-                <strong>No mission today</strong>
-                <p>Your coach has not added an action. Recovery is part of the plan.</p>
-              </div>`}
-
-          ${missionActionMarkup(nextMission, workoutActive)}
-
-          ${allComplete
-            ? `<p class="clob-mission-finish"><span>✓</span> Mission complete. Carry this momentum forward.</p>`
-            : ""}
         </section>
 
-        <section class="clob-section" aria-labelledby="workout-brief-title">
-          <div class="clob-section-head">
-            <div>
-              <p class="clob-kicker">TODAY'S PLAN</p>
-              <h2 id="workout-brief-title">Workout</h2>
-            </div>
-            <span class="clob-status ${workoutDone ? "is-success" : ""}">
-              ${workoutDone ? "COMPLETE" : workoutActive?.status === "in_progress" ? "IN PROGRESS" : "READY"}
-            </span>
-          </div>
-
-          <article class="clob-workout-brief">
-            <div class="clob-workout-top">
+        ${(water || sleep) ? `
+          <section class="clob-home-section" aria-labelledby="home-rhythm-title">
+            <div class="clob-home-section-head">
               <div>
-                <p class="clob-kicker">${workoutDone ? "COMPLETED SESSION" : "NEXT SESSION"}</p>
-                <h3>${escapeHtml(member.workout.title)}</h3>
-                <div class="clob-workout-meta">
-                  <span>${Number(member.workout.duration || 0)} min</span>
-                  <span>·</span>
-                  <span>${Number(member.workout.exercises || 0)} exercises</span>
-                </div>
+                <p class="clob-kicker">DAILY RHYTHM</p>
+                <h2 id="home-rhythm-title">ดูแลร่างกาย</h2>
               </div>
             </div>
-
-            <div class="clob-coach-note">
-              ${renderAvatar({ name: member.coachName, className: "coach-avatar" })}
-              <div>
-                <strong>${escapeHtml(member.coachName)}</strong>
-                <p>${escapeHtml(member.coachMessage)}</p>
-              </div>
+            <div class="clob-signal-grid">
+              ${water ? signalMarkup(water, 1, "น้ำ") : ""}
+              ${sleep ? signalMarkup(sleep, 1, "การนอน") : ""}
             </div>
+          </section>
+        ` : ""}
 
-            <button id="start-workout-button" class="clob-tertiary-action">
-              <span>${workoutActive?.status === "in_progress" ? "Continue workout" : workoutDone ? "Review workout" : "Open workout"}</span>
-              <span aria-hidden="true">→</span>
-            </button>
-          </article>
-        </section>
-
-        <section class="clob-section" aria-labelledby="daily-rhythm-title">
-          <div class="clob-section-head">
-            <div>
-              <p class="clob-kicker">DAILY RHYTHM</p>
-              <h2 id="daily-rhythm-title">Consistency</h2>
-            </div>
-            <strong class="clob-habit-score">${habitScore}%</strong>
-          </div>
-
-          <div class="clob-habit-track" aria-label="Daily habit progress ${habitScore}%">
-            <span style="--clob-habit-score:${habitScore}%"></span>
-          </div>
-
-          <div class="habit-quick-grid">
-            ${state.habits.map(habitMarkup).join("")}
-          </div>
-        </section>
-
-        <section class="clob-quick-links" aria-label="Quick links">
-          <button id="weekly-link" class="clob-quick-link">
-            <span>COACHING</span>
-            <strong>Weekly Check-in →</strong>
-          </button>
-          <button id="progress-link" class="clob-quick-link">
-            <span>YOUR JOURNEY</span>
-            <strong>View Progress →</strong>
-          </button>
-        </section>
+        <button id="weekly-link" class="clob-home-coaching-link">
+          <span>
+            <small>COACHING</small>
+            <strong>Weekly Check-in</strong>
+          </span>
+          <span aria-hidden="true">→</span>
+        </button>
 
         <div id="member-toast" class="toast" role="status" hidden></div>
-        ${bottomNav("today")}
       </div>
     </main>
   `;
 
   bind();
+}
+
+function priorityMarkup(priority, workoutSession) {
+  if (priority.type === "nutrition") {
+    const { calorieState } = priority;
+    return `
+      <article class="clob-priority-card is-nutrition is-${escapeHtml(calorieState.tone)}">
+        <div class="clob-priority-top">
+          <p class="clob-kicker">🔥 CALORIES</p>
+          <span>วันนี้</span>
+        </div>
+        <div class="clob-calorie-remaining">
+          <span>${escapeHtml(calorieState.label)}</span>
+          <strong>${calorieState.displayValue.toLocaleString("en-US")}</strong>
+          <small>kcal</small>
+        </div>
+        <button class="clob-priority-action" data-home-route="nutrition">
+          เพิ่มอาหาร <span aria-hidden="true">→</span>
+        </button>
+      </article>
+    `;
+  }
+
+  if (priority.type === "workout") {
+    const isActive = priority.status === "in_progress";
+    return `
+      <article class="clob-priority-card is-workout">
+        <div class="clob-priority-top">
+          <p class="clob-kicker">💪 TODAY'S WORKOUT</p>
+          <span class="clob-home-status">${isActive ? "IN PROGRESS" : "NOT STARTED"}</span>
+        </div>
+        <h2>${escapeHtml(member.workout.title)}</h2>
+        <div class="clob-priority-meta">
+          <span>${Number(member.workout.duration || 0)} นาที</span>
+          <span>·</span>
+          <span>${Number(member.workout.exercises || 0)} ท่า</span>
+        </div>
+        <button id="home-primary-action" class="clob-priority-action">
+          ${isActive ? "Workout ต่อ" : "เริ่มออกกำลังกาย"}
+          <span aria-hidden="true">→</span>
+        </button>
+        ${member.coachMessage ? `
+          <p class="clob-home-coach-note">
+            <strong>${escapeHtml(member.coachName)}</strong>
+            ${escapeHtml(member.coachMessage)}
+          </p>
+        ` : ""}
+      </article>
+    `;
+  }
+
+  if (priority.type === "mission") {
+    const mission = priority.mission;
+    const isWeekly = mission.id === "checkin";
+    return `
+      <article class="clob-priority-card is-mission">
+        <div class="clob-priority-top">
+          <p class="clob-kicker">NEXT ACTION</p>
+          <span class="clob-home-status">1 STEP LEFT</span>
+        </div>
+        <h2>${escapeHtml(mission.label)}</h2>
+        <p>ทำสิ่งสำคัญต่อไปให้เสร็จ แล้ววันนี้จะครบสมบูรณ์</p>
+        <button
+          id="home-primary-action"
+          class="clob-priority-action"
+          ${isWeekly ? `data-mission-route="weekly"` : `data-complete-task-id="${escapeHtml(mission.id)}"`}
+        >
+          ${isWeekly ? "เปิด Weekly Check-in" : "ทำรายการนี้สำเร็จ"}
+          <span aria-hidden="true">→</span>
+        </button>
+      </article>
+    `;
+  }
+
+  if (priority.type === "success") {
+    return `
+      <article class="clob-priority-card is-success">
+        <p class="clob-kicker">🎉 PERFECT DAY</p>
+        <h2>วันนี้ทำครบแล้ว</h2>
+        <p>ทุกสิ่งสำคัญของวันนี้เสร็จเรียบร้อย พักและรักษา Momentum นี้ไว้</p>
+        <div class="clob-perfect-mark" aria-hidden="true">✓</div>
+      </article>
+    `;
+  }
+
+  return `
+    <article class="clob-priority-card is-recovery">
+      <p class="clob-kicker">TODAY</p>
+      <h2>Recovery is part of the plan.</h2>
+      <p>วันนี้ไม่มีภารกิจค้าง พักให้เต็มที่แล้วกลับมาแข็งแรงกว่าเดิม</p>
+    </article>
+  `;
+}
+
+function workoutCardMarkup(status) {
+  return `
+    <button class="clob-home-data-card" data-home-route="workout">
+      <span class="clob-data-icon">W</span>
+      <span class="clob-data-copy">
+        <small>WORKOUT</small>
+        <strong>${escapeHtml(member.workout.title)}</strong>
+        <span>${status === "completed" ? "Completed" : status === "in_progress" ? "In progress" : "Not started"}</span>
+      </span>
+      <span class="clob-data-state ${status === "completed" ? "is-done" : ""}">
+        ${status === "completed" ? "✓" : "→"}
+      </span>
+    </button>
+  `;
+}
+
+function progressCardMarkup(weight, weightChange) {
+  const trend = weightChange === null
+    ? "ยังไม่มีแนวโน้ม"
+    : weightChange === 0
+      ? "คงที่จากครั้งแรก"
+      : `${weightChange > 0 ? "+" : ""}${weightChange} kg จากครั้งแรก`;
+
+  return `
+    <button class="clob-home-data-card" data-home-route="progress">
+      <span class="clob-data-icon">↗</span>
+      <span class="clob-data-copy">
+        <small>WEIGHT</small>
+        <strong>${formatMetric(weight, "kg")}</strong>
+        <span>${escapeHtml(weight === null ? "แตะเพื่อบันทึก Check-in แรก" : trend)}</span>
+      </span>
+      <span class="clob-data-state">→</span>
+    </button>
+  `;
+}
+
+function signalMarkup(habit, step, thaiLabel) {
+  const value = Number(habit.value || 0);
+  const target = Number(habit.target || 0);
+  const percent = Math.min(100, Math.round((value / Math.max(1, target)) * 100));
+
+  return `
+    <article class="clob-signal-card ${habit.completed ? "is-complete" : ""}">
+      <div>
+        <small>${escapeHtml(habit.label)}</small>
+        <strong>${escapeHtml(habit.value)} <span>/ ${escapeHtml(habit.target)} ${escapeHtml(habit.unit)}</span></strong>
+      </div>
+      <div class="clob-signal-track" aria-label="${escapeHtml(thaiLabel)} ${percent}%">
+        <span style="--signal-progress:${percent}%"></span>
+      </div>
+      <div class="clob-signal-actions">
+        <button data-habit-minus="${escapeHtml(habit.id)}" data-step="${step}" aria-label="ลด${escapeHtml(thaiLabel)}">−</button>
+        <button data-habit-plus="${escapeHtml(habit.id)}" data-step="${step}" aria-label="เพิ่ม${escapeHtml(thaiLabel)}">＋</button>
+      </div>
+    </article>
+  `;
 }
 
 function getMissionTasks(tasks, workoutDone) {
@@ -207,86 +288,12 @@ function getMissionTasks(tasks, workoutDone) {
   });
 }
 
-function missionMarkup(task, isNext) {
-  return `
-    <label class="clob-mission-item ${task.completed ? "is-complete" : ""} ${isNext ? "is-next" : ""}">
-      <span class="clob-mission-check">
-        <input
-          type="checkbox"
-          data-task-id="${escapeHtml(task.id)}"
-          ${task.completed ? "checked" : ""}
-          ${task.completedFromWorkout ? "disabled" : ""}
-        >
-        <span aria-hidden="true">✓</span>
-      </span>
-      <span class="clob-mission-copy">
-        <strong>${escapeHtml(task.label)}</strong>
-        <small>${task.completed ? "Completed" : isNext ? "Your next action" : "Tap when done"}</small>
-      </span>
-      ${isNext ? `<span class="clob-next-badge">NEXT</span>` : ""}
-    </label>
-  `;
-}
-
-function missionActionMarkup(task, workoutActive) {
-  if (!task) return "";
-
-  if (task.id === "workout") {
-    const label = workoutActive?.status === "in_progress" ? "Continue Workout" : "Start Workout";
-    return `
-      <button id="mission-action" class="clob-primary-action clob-mission-action" data-mission-route="workout">
-        ${label}<span aria-hidden="true">→</span>
-      </button>
-    `;
-  }
-
-  if (task.id === "checkin") {
-    return `
-      <button id="mission-action" class="clob-primary-action clob-mission-action" data-mission-route="weekly">
-        Review Weekly Goal<span aria-hidden="true">→</span>
-      </button>
-    `;
-  }
-
-  return `
-    <button
-      id="mission-action"
-      class="clob-primary-action clob-mission-action"
-      data-complete-task-id="${escapeHtml(task.id)}"
-    >
-      Mark Mission Complete<span aria-hidden="true">✓</span>
-    </button>
-  `;
-}
-
-function habitMarkup(habit) {
-  const percent = Math.min(100, Math.round((Number(habit.value || 0) / Math.max(1, Number(habit.target || 1))) * 100));
-  const step = habit.id === "steps" ? 1000 : 1;
-  return `
-    <article class="habit-quick-card card">
-      <div>
-        <span>${escapeHtml(habit.label)}</span>
-        <strong>${escapeHtml(habit.value)} <small>/ ${escapeHtml(habit.target)} ${escapeHtml(habit.unit)}</small></strong>
-      </div>
-      <div class="habit-mini-progress"><span style="width:${percent}%"></span></div>
-      <div class="habit-adjust">
-        <button data-habit-minus="${escapeHtml(habit.id)}" data-step="${step}" aria-label="ลด ${escapeHtml(habit.label)}">−</button>
-        <button data-habit-plus="${escapeHtml(habit.id)}" data-step="${step}" aria-label="เพิ่ม ${escapeHtml(habit.label)}">＋</button>
-      </div>
-    </article>
-  `;
-}
-
 function bind() {
   document.querySelector("#profile-button").addEventListener("click", () => navigate("/member-profile"));
-  document.querySelector("#start-workout-button").addEventListener("click", openWorkout);
+  document.querySelector("#weekly-link").addEventListener("click", () => navigate("/member-weekly"));
 
-  document.querySelector("#mission-action")?.addEventListener("click", async (event) => {
+  document.querySelector("#home-primary-action")?.addEventListener("click", async (event) => {
     const action = event.currentTarget;
-    if (action.dataset.missionRoute === "workout") {
-      openWorkout();
-      return;
-    }
     if (action.dataset.missionRoute === "weekly") {
       navigate("/member-weekly");
       return;
@@ -294,23 +301,16 @@ function bind() {
     if (action.dataset.completeTaskId) {
       state = await toggleTask(code, action.dataset.completeTaskId, true);
       render();
-      toast("Mission complete. Nice work.");
+      toast("ทำภารกิจสำเร็จแล้ว");
+      return;
     }
+    openWorkout();
   });
 
-  document.querySelector("#weekly-link").addEventListener("click", () => {
-    navigate("/member-weekly");
-  });
-
-  document.querySelector("#progress-link").addEventListener("click", () => {
-    navigate(`/member-progress-${code}`);
-  });
-
-  document.querySelectorAll("[data-task-id]").forEach((input) => {
-    input.addEventListener("change", async () => {
-      state = await toggleTask(code, input.dataset.taskId, input.checked);
-      render();
-      toast(input.checked ? "Mission complete. Nice work." : "Mission updated.");
+  document.querySelectorAll("[data-home-route]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.dataset.homeRoute === "workout") openWorkout();
+      if (button.dataset.homeRoute === "progress") navigate(`/member-progress-${code}`);
     });
   });
 
@@ -324,8 +324,6 @@ function bind() {
       render();
     });
   });
-
-  bindBottomNav();
 }
 
 function openWorkout() {
@@ -334,27 +332,11 @@ function openWorkout() {
   navigate("/workout");
 }
 
-function bottomNav(active) {
-  return `
-    <nav class="bottom-nav" aria-label="เมนูสมาชิก">
-      <button class="nav-item ${active === "today" ? "is-active" : ""}" data-member-nav="today"><span>⌂</span><small>Today</small></button>
-      <button class="nav-item ${active === "workout" ? "is-active" : ""}" data-member-nav="workout"><span>✦</span><small>Workout</small></button>
-      <button class="nav-item ${active === "progress" ? "is-active" : ""}" data-member-nav="progress"><span>↗</span><small>Progress</small></button>
-      <button class="nav-item ${active === "profile" ? "is-active" : ""}" data-member-nav="profile"><span>○</span><small>Profile</small></button>
-    </nav>
-  `;
-}
-
-function bindBottomNav() {
-  document.querySelectorAll("[data-member-nav]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const target = button.dataset.memberNav;
-      if (target === "today") navigate("/member");
-      if (target === "workout") navigate("/workout");
-      if (target === "progress") navigate(`/member-progress-${code}`);
-      if (target === "profile") navigate("/member-profile");
-    });
-  });
+function getGreeting(date = new Date()) {
+  const hour = date.getHours();
+  if (hour < 12) return "Good Morning";
+  if (hour < 18) return "Good Afternoon";
+  return "Good Evening";
 }
 
 function toast(message) {
