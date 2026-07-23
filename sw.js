@@ -1,4 +1,4 @@
-const CACHE_NAME = "clob-patch-007-coach-security-profile";
+const CACHE_NAME = "clob-hotfix-unified-profile-photo-v1";
 
 const APP_SHELL = [
   "./",
@@ -11,6 +11,7 @@ const APP_SHELL = [
   "./js/app.js",
   "./js/config.js",
   "./js/firebase.js",
+  "./js/profile-photo-service.js",
   "./js/router.js",
   "./js/views.js",
   "./js/member.js",

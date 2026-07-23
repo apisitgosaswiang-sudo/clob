@@ -1,0 +1,29 @@
+CLOB Hotfix — Unified Profile Photo Flow
+
+Changed files:
+- js/profile-photo-service.js (new)
+- js/progress-photos-page.js
+- js/trainer-settings-page.js
+- js/members.js
+- js/member.js
+- sw.js
+- firebase/storage.rules
+
+Fixes:
+1. Member and Coach now use one upload/save flow.
+2. Member profilePhoto fields are preserved when member data is normalized/reloaded.
+3. Upload is only reported as successful after the download URL is saved to Realtime Database.
+4. Coach and Member keep separate Storage/Database paths.
+5. Storage permission errors now point to the required Firebase Storage Rules deployment.
+6. Service-worker cache version changed so devices fetch the patched JavaScript.
+
+Deployment:
+1. Copy the changed files over the current project.
+2. Deploy the website to Vercel.
+3. Deploy Firebase Storage Rules from firebase/storage.rules to project online-trainer-c.
+   Example with Firebase CLI from a configured project:
+   firebase deploy --only storage
+4. Fully close and reopen the installed PWA once after deployment.
+
+Important:
+Vercel deployment does not deploy Firebase Storage Rules. The Storage Rules must be deployed separately.
