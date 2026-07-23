@@ -1,7 +1,7 @@
 import { APP_CONFIG } from "./config.js";
 import { navigate } from "./router.js";
 import { loadTrainerProfile, saveTrainerProfile } from "./trainer-profile.js";
-import { uploadImage, saveCoachProfilePhoto } from "./firebase.js";
+import { uploadProfilePhoto } from "./profile-photo-service.js";
 import { createImageCropper } from "./image-processor.js";
 import { escapeHtml, renderAvatar } from "./utils.js";
 
@@ -197,13 +197,12 @@ async function uploadCoachPhoto(profile, result) {
   modal.innerHTML = uploadMarkup(0);
 
   try {
-    const upload = await uploadImage(
-      `coaches/${APP_CONFIG.coachId}/profile/profile_${Date.now()}.webp`,
-      result.blob,
-      updateUploadProgress
-    );
-    const saved = await saveCoachProfilePhoto(APP_CONFIG.coachId, upload);
-    if (!saved) throw new Error("บันทึกรูปโปรไฟล์ไม่สำเร็จ");
+    const upload = await uploadProfilePhoto({
+      ownerType: "coach",
+      ownerId: APP_CONFIG.coachId,
+      blob: result.blob,
+      onProgress: updateUploadProgress
+    });
     await saveTrainerProfile({ ...profile, profilePhoto: upload.url });
     URL.revokeObjectURL(result.previewUrl);
     modal.hidden = true;

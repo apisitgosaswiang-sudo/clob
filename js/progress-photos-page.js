@@ -1,6 +1,7 @@
 import { navigate } from "./router.js";
 import { loadMembers, getMemberByCode } from "./members.js";
-import { uploadImage, saveProgressPhotoSet, saveMemberProfilePhoto, getProgressPhotoSets } from "./firebase.js";
+import { uploadImage, saveProgressPhotoSet, getProgressPhotoSets } from "./firebase.js";
+import { uploadProfilePhoto } from "./profile-photo-service.js";
 import { createImageCropper } from "./image-processor.js";
 
 const app = document.querySelector("#app");
@@ -229,13 +230,12 @@ async function uploadProfile(result) {
   modal.innerHTML = uploadMarkup("Uploading profile...", 0);
 
   try {
-    const filename = `profile_${Date.now()}.webp`;
-    const upload = await uploadImage(
-      `members/${member.code}/profile/${filename}`,
-      result.blob,
-      (progress) => updateUploadProgress(progress)
-    );
-    await saveMemberProfilePhoto(member.code, upload);
+    const upload = await uploadProfilePhoto({
+      ownerType: "member",
+      ownerId: member.code,
+      blob: result.blob,
+      onProgress: (progress) => updateUploadProgress(progress)
+    });
     member.profilePhoto = upload.url;
     modal.hidden = true;
     render();
