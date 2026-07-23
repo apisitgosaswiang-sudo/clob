@@ -1,0 +1,25 @@
+CLOB PATCH-008 — Coach Upload + Home Avatar Fix
+
+ไฟล์ที่แก้:
+- js/profile-photo-service.js
+- css/app.css
+- sw.js
+
+แก้ไข:
+1) Coach ใช้ระบบอัปโหลดเดียวกับ Member ผ่าน Storage path สำรอง
+   members/_coaches/{coachId}/profile/...
+   โดยยังบันทึก URL ลงข้อมูล Coach ตามเดิม
+2) หน้า Today/Home ตัด padding เริ่มต้นของปุ่ม avatar และบังคับ overflow hidden
+   ทำให้รูปเต็มวงเหมือนหน้า Profile และ Progress
+3) เปลี่ยน Service Worker cache version เพื่อให้ iPhone โหลดไฟล์ใหม่
+
+ติดตั้ง:
+1. วางไฟล์ทั้งหมดทับตาม path เดิม
+2. Deploy Vercel
+3. ปิด CLOB จาก App Switcher แล้วเปิดใหม่
+4. หากยังเห็นหน้าเก่า ให้เปิดผ่าน Safari 1 ครั้งแล้ว Refresh ก่อนกลับเข้า PWA
+
+หมายเหตุ:
+- ไม่แก้ Member login, Member PIN, Coach ID หรือ Coach PIN
+- ไม่ต้องย้ายข้อมูลเดิม
+- รูป Coach ใหม่จะอยู่ใน reserved folder _coaches เพื่อรองรับ Storage rules ที่ใช้งานจริง
