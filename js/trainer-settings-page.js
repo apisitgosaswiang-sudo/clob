@@ -4,6 +4,7 @@ import { loadTrainerProfile, saveTrainerProfile } from "./trainer-profile.js";
 import { uploadProfilePhoto } from "./profile-photo-service.js";
 import { createImageCropper } from "./image-processor.js";
 import { escapeHtml, renderAvatar } from "./utils.js";
+import { endCoachSession } from "./coach-session.js";
 
 const app = document.querySelector("#app");
 let cropper = null;
@@ -91,8 +92,7 @@ function bind(profile) {
   document.querySelector("#open-beta-control").addEventListener("click", () => navigate("/beta-control"));
   document.querySelector("#trainer-home").addEventListener("click", () => navigate("/"));
   document.querySelector("#trainer-logout").addEventListener("click", () => {
-    sessionStorage.removeItem("clob_trainer");
-    sessionStorage.removeItem("clob_coach_id");
+    endCoachSession();
     navigate("/");
   });
   document.querySelectorAll("[data-route]").forEach((button) => {

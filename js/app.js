@@ -10,7 +10,6 @@ import {
   renderExerciseTracker,
   renderWorkoutComplete
 } from "./workout.js";
-import { renderTrainerDashboard } from "./trainer-dashboard.js";
 import { renderMembersPage, renderMemberDetail } from "./members-page.js";
 import { renderProgramsPage, renderProgramBuilder } from "./program-builder.js";
 import { renderExerciseLibraryPage } from "./exercise-library-page.js";
@@ -26,6 +25,7 @@ import { renderAddMemberPage, renderEditMemberPage, renderPackagePage } from "./
 import { renderMemberProgressPage } from "./member-progress-page.js";
 import { renderMemberWeeklyUpdatePage } from "./member-weekly-update-page.js";
 import { renderPackageManagement } from "./package-management.js";
+import { restoreCoachSession } from "./coach-session.js";
 
 registerRoute("/", renderLanding);
 registerRoute("/trainer-login", renderTrainerLogin);
@@ -37,9 +37,11 @@ registerRoute("/workout", renderWorkoutOverview);
 registerRoute("/workout-complete", renderWorkoutComplete);
 registerRoute("/trainer", renderTrainerDashboardPage);
 registerRoute("/members", renderMembersPage);
+registerRoute("/member-add", renderAddMemberPage);
 registerRoute("/programs", renderProgramsPage);
 registerRoute("/packages", renderPackageManagement);
 registerRoute("/library", renderExerciseLibraryPage);
+registerRoute("/trainer-settings", renderTrainerSettingsPage);
 registerPatternRoute(/^\/workout-exercise-(\d+)$/, (index) => renderExerciseTracker(Number(index)));
 registerPatternRoute(/^\/member-edit-([^/]+)$/, renderEditMemberPage);
 registerPatternRoute(/^\/member-package-([^/]+)$/, renderPackagePage);
@@ -119,7 +121,7 @@ function updateFirebaseBanner(detail) {
   banner.id = "global-firebase-banner";
   banner.className = "global-firebase-banner";
   banner.setAttribute("role", "alert");
-  banner.textContent = "ยังไม่ได้เชื่อมฐานข้อมูล ข้อมูลที่เห็นอาจเป็นข้อมูลสำรองในเครื่อง และการบันทึกอาจไม่สำเร็จ";
+  banner.textContent = "เชื่อม Firebase ไม่สำเร็จ ข้อมูลที่เห็นอาจเป็นข้อมูลสำรองในเครื่อง กรุณาตรวจ Anonymous Authentication และ Firebase Rules ก่อนบันทึก";
   if (!existing) document.body.prepend(banner);
 }
 
@@ -129,6 +131,7 @@ window.addEventListener("hashchange", () => {
 });
 
 async function bootstrap() {
+  restoreCoachSession();
   const firebaseStatus = await initializeFirebase();
   startRouter();
   updateFirebaseBanner(firebaseStatus);

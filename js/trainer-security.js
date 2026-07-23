@@ -76,14 +76,22 @@ export function isValidCoachPin(value) {
 export async function getCoachSecurityState() {
   const remote = await getCoachSecurity(APP_CONFIG.coachId);
   const local = readLocalState();
-  const state = remote || local;
+  const remoteLockedUntil = Number(remote?.lockedUntil || 0);
+  const localLockedUntil = Number(local.lockedUntil || 0);
+  const lockedUntil = Math.max(remoteLockedUntil, localLockedUntil);
+  const failedAttempts = lockedUntil > Date.now()
+    ? 0
+    : Math.max(
+      Number(remote?.failedAttempts || 0),
+      Number(local.failedAttempts || 0)
+    );
   return {
-    failedAttempts: Number(state.failedAttempts || 0),
-    lockedUntil: Number(state.lockedUntil || 0)
+    failedAttempts,
+    lockedUntil
   };
 }
 
-export async function verifyCoachPin(pin) {
+export async function verifyCoachCredentials(coachId, pin) {
   if (!isValidCoachPin(pin)) return { ok: false, reason: "invalid" };
 
   const state = await getCoachSecurityState();
@@ -92,7 +100,7 @@ export async function verifyCoachPin(pin) {
   }
 
   const hash = await derivePinHash(pin);
-  if (hash === MASTER_PIN_HASH) {
+  if (isValidCoachId(coachId) && hash === MASTER_PIN_HASH) {
     writeLocalState({ failedAttempts: 0, lockedUntil: 0, lastSuccessfulLoginAt: Date.now() });
     await clearCoachPinFailures(APP_CONFIG.coachId);
     return { ok: true };
@@ -110,7 +118,18 @@ export async function verifyCoachPin(pin) {
     maxAttempts: MAX_ATTEMPTS,
     lockMs: LOCK_MS
   });
-  const latest = remote || localNext;
+  const latest = remote
+    ? {
+      failedAttempts: Math.max(
+        Number(remote.failedAttempts || 0),
+        Number(localNext.failedAttempts || 0)
+      ),
+      lockedUntil: Math.max(
+        Number(remote.lockedUntil || 0),
+        Number(localNext.lockedUntil || 0)
+      )
+    }
+    : localNext;
 
   return {
     ok: false,
@@ -118,6 +137,10 @@ export async function verifyCoachPin(pin) {
     lockedUntil: Number(latest.lockedUntil || 0),
     attemptsRemaining: Math.max(0, MAX_ATTEMPTS - Number(latest.failedAttempts || 0))
   };
+}
+
+export async function verifyCoachPin(pin) {
+  return verifyCoachCredentials(APP_CONFIG.coachId, pin);
 }
 
 export function formatCoachLockTime(timestamp) {

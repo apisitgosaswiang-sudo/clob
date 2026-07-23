@@ -3,9 +3,12 @@ import { navigate } from "./router.js";
 import { loadMember, createWorkoutSession, getActiveWorkoutSession } from "./member.js";
 import { getFirebaseStatus } from "./firebase.js";
 import { getMemberSecurityState, createMemberPin, verifyMemberPin, formatLockTime } from "./member-security.js";
-import { isValidCoachId, verifyCoachPin, formatCoachLockTime } from "./trainer-security.js";
+import { verifyCoachCredentials, formatCoachLockTime } from "./trainer-security.js";
+import { startCoachSession, isCoachSessionActive, endCoachSession } from "./coach-session.js";
+import { escapeHtml } from "./utils.js";
 
 const app = document.querySelector("#app");
+let firebaseStatusListener = null;
 
 function page(content, extraClass = "") {
   app.innerHTML = `<main class="page ${extraClass}">${content}</main>`;
@@ -31,7 +34,11 @@ function bindFirebaseStatus() {
   };
 
   renderStatus(getFirebaseStatus());
-  window.addEventListener("clob:firebase-status", (event) => renderStatus(event.detail), { once: true });
+  if (firebaseStatusListener) {
+    window.removeEventListener("clob:firebase-status", firebaseStatusListener);
+  }
+  firebaseStatusListener = (event) => renderStatus(event.detail);
+  window.addEventListener("clob:firebase-status", firebaseStatusListener);
 }
 
 function getGreeting() {
@@ -39,15 +46,6 @@ function getGreeting() {
   if (hour < 12) return "Good Morning";
   if (hour < 18) return "Good Afternoon";
   return "Good Evening";
-}
-
-function escapeHtml(value = "") {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }
 
 export function renderLanding() {
@@ -274,6 +272,11 @@ export function renderLanding() {
 }
 
 export function renderTrainerLogin() {
+  if (isCoachSessionActive()) {
+    navigate("/trainer");
+    return;
+  }
+
   page(`
     <div class="topbar">
       <button id="back-button" class="back-button" aria-label="ย้อนกลับ">←</button>
@@ -309,8 +312,8 @@ export function renderTrainerLogin() {
 
       <div id="coach-pin-step" hidden>
         <div class="coach-login-identity">
-          <span>Coach</span>
-          <strong>First</strong>
+          <span>Coach ID</span>
+          <strong id="coach-login-id">••••</strong>
           <button id="change-coach-id" class="button button-text" type="button">เปลี่ยน Coach ID</button>
         </div>
         <label class="field-label" for="trainer-pin">Security PIN 6 หลัก</label>
@@ -347,15 +350,16 @@ export function renderTrainerLogin() {
   const clearError = () => { errorBox.hidden = true; };
 
   const openPinStep = () => {
-    if (!isValidCoachId(coachId.value)) {
-      showError("ไม่พบ Coach ID นี้ กรุณาตรวจสอบอีกครั้ง");
+    if (!/^\d{4}$/.test(coachId.value)) {
+      showError("กรุณากรอก Coach ID ให้ครบ 4 หลัก");
       coachId.select();
       return;
     }
     clearError();
     idStep.hidden = true;
     pinStep.hidden = false;
-    subtitle.textContent = "กรอก Security PIN 6 หลักของ Coach First";
+    document.querySelector("#coach-login-id").textContent = coachId.value;
+    subtitle.textContent = "กรอก Security PIN 6 หลักเพื่อเข้าสู่ Coach Portal";
     setTimeout(() => pin.focus(), 50);
   };
 
@@ -372,10 +376,9 @@ export function renderTrainerLogin() {
     clearError();
 
     try {
-      const result = await verifyCoachPin(pin.value);
+      const result = await verifyCoachCredentials(coachId.value, pin.value);
       if (result.ok) {
-        sessionStorage.setItem("clob_trainer", "true");
-        sessionStorage.setItem("clob_coach_id", coachId.value);
+        startCoachSession(coachId.value);
         navigate("/trainer");
         return;
       }
@@ -386,12 +389,12 @@ export function renderTrainerLogin() {
         const remaining = Number.isFinite(result.attemptsRemaining)
           ? ` เหลืออีก ${result.attemptsRemaining} ครั้ง`
           : "";
-        showError(`Security PIN ไม่ถูกต้อง${remaining}`);
+        showError(`ข้อมูลเข้าสู่ระบบไม่ถูกต้อง${remaining}`);
       }
       pin.value = "";
       pin.focus();
     } catch (error) {
-      showError(error.message || "ไม่สามารถตรวจสอบ Security PIN ได้");
+      showError(error.message || "ไม่สามารถตรวจสอบข้อมูลเข้าสู่ระบบได้");
     } finally {
       button.disabled = false;
       button.textContent = "Unlock Coach Portal";
@@ -645,7 +648,7 @@ export function renderTrainerPlaceholder() {
   `);
 
   document.querySelector("#logout-button").addEventListener("click", () => {
-    sessionStorage.removeItem("clob_trainer");
+    endCoachSession();
     navigate("/");
   });
 }
