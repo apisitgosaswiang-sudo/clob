@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
-  <title id="title">Morning Warrior by CLOB</title>
+  <title id="title">Morning Warrior</title>
   <rect width="512" height="512" rx="150" fill="#09090B"/>
   <circle cx="256" cy="130" r="42" fill="#E11D48"/>
   <path d="M108 360V188h55l93 105 93-105h55v172h-58v-84l-90 101-90-101v84z" fill="#fff"/>
