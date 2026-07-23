@@ -1,4 +1,4 @@
-const CACHE_NAME = "clob-v2-patch-011r-d001-redesign-v1";
+const CACHE_NAME = "clob-v2-patch-011f-dynamic-home-progress-v1";
 
 const APP_SHELL = [
   "./",
@@ -20,6 +20,7 @@ const APP_SHELL = [
   "./js/members.js",
   "./js/members-page.js",
   "./js/member-today-page.js",
+  "./js/dynamic-home.js",
   "./js/emotion-design.js",
   "./js/member-profile-page.js",
   "./js/member-progress-page.js",

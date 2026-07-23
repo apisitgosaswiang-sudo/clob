@@ -1,0 +1,30 @@
+CLOB v2 PATCH-011F — DYNAMIC HOME + MEMBER PROGRESS
+
+BASE REQUIRED
+-------------
+CLOB v2 Patch-010 must already be installed.
+
+DO NOT INSTALL
+--------------
+Do not install the old Patch-011 or Patch-011R packages.
+Patch-011F replaces both of them.
+
+INSTALL
+-------
+1. Extract the Patch-011F ZIP.
+2. Copy every included file into the same relative path in your CLOB project.
+3. Allow the listed files to replace their older versions.
+4. Do not replace or delete Firebase rules or database data.
+5. Publish the project.
+6. Close and reopen the installed PWA once.
+
+FIRST CHECK
+-----------
+1. Login as a Member.
+2. Confirm Dynamic Home shows the current next action.
+3. Open Progress.
+4. Tap "บันทึก Check-in วันนี้".
+5. Enter Weight, Body Fat or Waist and save.
+6. Confirm the summary and Timeline update immediately.
+
+See docs/PATCH-011F-QA.md for the full test list.
