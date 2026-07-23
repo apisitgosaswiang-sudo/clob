@@ -778,9 +778,13 @@
   }
 }
 
-/* Patch-011F — Dynamic Member Home */
+/* Patch-011F2 — Dynamic Member Home, light-first priority hierarchy */
 
-.member-page.clob-dynamic-home,
+.member-page.clob-dynamic-home {
+  color: var(--clob-ink);
+  background: var(--clob-canvas);
+}
+
 .member-page.clob-member-progress {
   color: var(--clob-ink);
   background:
@@ -852,28 +856,19 @@
 
 .clob-priority-card {
   position: relative;
-  min-height: 290px;
+  min-height: 270px;
   overflow: hidden;
-  padding: 23px;
+  padding: 22px;
+  border: 1px solid var(--clob-line);
   border-radius: 28px;
-  color: white;
-  background:
-    radial-gradient(circle at 92% 2%, rgba(225, 29, 72, .22), transparent 35%),
-    linear-gradient(150deg, #222225 0%, #101012 75%);
-  box-shadow: 0 27px 62px rgba(19, 19, 21, .2);
+  color: var(--clob-ink);
+  background: var(--clob-surface);
+  box-shadow: 0 18px 48px rgba(19, 19, 21, .075);
   animation: clob-rise var(--clob-motion-slow) var(--clob-ease) both;
 }
 
 .clob-priority-card::after {
-  content: "";
-  position: absolute;
-  right: -58px;
-  bottom: -76px;
-  width: 185px;
-  height: 185px;
-  border: 1px solid rgba(255, 255, 255, .055);
-  border-radius: 50%;
-  pointer-events: none;
+  content: none;
 }
 
 .clob-priority-card > * {
@@ -882,7 +877,7 @@
 }
 
 .clob-priority-card .clob-kicker {
-  color: rgba(255, 255, 255, .58);
+  color: var(--clob-action);
 }
 
 .clob-priority-top {
@@ -894,7 +889,7 @@
 }
 
 .clob-priority-top > span {
-  color: rgba(255, 255, 255, .55);
+  color: var(--clob-muted);
   font-size: .61rem;
   font-weight: 800;
   letter-spacing: .06em;
@@ -902,9 +897,9 @@
 
 .clob-home-status {
   padding: 6px 9px;
-  border: 1px solid rgba(255, 255, 255, .11);
+  border: 1px solid var(--clob-line);
   border-radius: var(--clob-radius-pill);
-  background: rgba(255, 255, 255, .07);
+  background: var(--clob-surface-muted);
 }
 
 .clob-priority-card h2 {
@@ -918,7 +913,7 @@
 .clob-priority-card > p:not(.clob-kicker):not(.clob-home-coach-note) {
   max-width: 290px;
   margin: 14px 0 0;
-  color: rgba(255, 255, 255, .66);
+  color: var(--clob-ink-soft);
   font-size: .82rem;
   line-height: 1.55;
 }
@@ -927,7 +922,7 @@
   display: flex;
   gap: 9px;
   margin-top: 12px;
-  color: rgba(255, 255, 255, .57);
+  color: var(--clob-muted);
   font-size: .73rem;
   font-weight: 700;
 }
@@ -939,13 +934,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 34px;
+  margin-top: 30px;
   padding: 0 17px;
   border: 0;
   border-radius: 16px;
   color: white;
   background: var(--clob-action);
-  box-shadow: 0 15px 32px rgba(225, 29, 72, .28);
+  box-shadow: 0 10px 24px rgba(225, 29, 72, .18);
   font-size: .83rem;
   font-weight: 850;
 }
@@ -963,7 +958,7 @@
   display: -webkit-box;
   margin: 16px 0 0;
   overflow: hidden;
-  color: rgba(255, 255, 255, .54);
+  color: var(--clob-muted);
   font-size: .66rem;
   line-height: 1.5;
   -webkit-box-orient: vertical;
@@ -972,14 +967,17 @@
 
 .clob-home-coach-note strong {
   margin-right: 5px;
-  color: rgba(255, 255, 255, .78);
+  color: var(--clob-ink-soft);
 }
 
 .clob-priority-card.is-success {
   min-height: 265px;
-  background:
-    radial-gradient(circle at 90% 4%, rgba(49, 181, 128, .24), transparent 38%),
-    linear-gradient(150deg, #202824 0%, #101412 76%);
+  border-color: rgba(22, 134, 91, .2);
+  background: var(--clob-surface);
+}
+
+.clob-priority-card.is-success .clob-kicker {
+  color: var(--clob-success);
 }
 
 .clob-priority-card.is-success h2,
@@ -993,18 +991,20 @@
   height: 58px;
   margin-top: 28px;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, .16);
+  border: 1px solid rgba(22, 134, 91, .16);
   border-radius: 50%;
-  color: #a5efd0;
-  background: rgba(22, 134, 91, .18);
+  color: var(--clob-success);
+  background: var(--clob-success-soft);
   font-size: 1.45rem;
 }
 
 .clob-priority-card.is-recovery {
   min-height: 240px;
-  background:
-    radial-gradient(circle at 90% 5%, rgba(185, 133, 47, .13), transparent 36%),
-    linear-gradient(150deg, #242321 0%, #121211 76%);
+  background: var(--clob-surface-muted);
+}
+
+.clob-priority-card.is-recovery .clob-kicker {
+  color: var(--clob-muted);
 }
 
 .clob-priority-card.is-nutrition .clob-calorie-remaining {
@@ -1017,7 +1017,7 @@
 .clob-calorie-remaining > span {
   position: absolute;
   top: -17px;
-  color: rgba(255, 255, 255, .62);
+  color: var(--clob-muted);
   font-size: .76rem;
   font-weight: 700;
 }
@@ -1029,21 +1029,28 @@
 }
 
 .clob-calorie-remaining small {
-  color: rgba(255, 255, 255, .55);
+  color: var(--clob-muted);
   font-weight: 800;
 }
 
 .clob-priority-card.is-near {
-  background:
-    radial-gradient(circle at 92% 2%, rgba(245, 178, 62, .26), transparent 38%),
-    linear-gradient(150deg, #2c271d 0%, #15130f 75%);
+  border-color: rgba(196, 123, 20, .28);
+  background: var(--clob-surface);
+}
+
+.clob-priority-card.is-near .clob-calorie-remaining strong {
+  color: var(--clob-warning);
 }
 
 .clob-priority-card.is-critical,
 .clob-priority-card.is-over {
-  background:
-    radial-gradient(circle at 92% 2%, rgba(226, 65, 82, .3), transparent 38%),
-    linear-gradient(150deg, #2d2023 0%, #160f11 75%);
+  border-color: rgba(197, 45, 63, .28);
+  background: var(--clob-surface);
+}
+
+.clob-priority-card.is-critical .clob-calorie-remaining strong,
+.clob-priority-card.is-over .clob-calorie-remaining strong {
+  color: var(--clob-error);
 }
 
 .clob-home-section {
@@ -1876,7 +1883,7 @@ body.clob-sheet-open {
   }
 
   .clob-priority-card {
-    min-height: 275px;
+    min-height: 258px;
     padding: 19px;
   }
 
