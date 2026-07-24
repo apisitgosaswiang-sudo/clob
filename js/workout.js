@@ -121,8 +121,11 @@ export async function renderWorkoutOverview() {
               <button class="exercise-list-item card ${exercise.completed ? "is-complete" : ""}" data-exercise-index="${index}">
                 <span class="exercise-order">${exercise.completed ? "✓" : index + 1}</span>
                 <span class="exercise-copy">
-                  <strong>${escapeHtml(exercise.name)}</strong>
-                  <small>${exercise.targetSets} × ${escapeHtml(exercise.targetReps)} · พัก ${exercise.restSeconds} วินาที</small>
+                  ${exercise.imageUrl ? `<img class="exercise-thumb" src="${escapeHtml(exercise.imageUrl)}" alt="">` : ""}
+                  <span class="exercise-copy-text">
+                    <strong>${escapeHtml(exercise.name)}</strong>
+                    <small>${exercise.targetSets} × ${escapeHtml(exercise.targetReps)} · พัก ${exercise.restSeconds} วินาที</small>
+                  </span>
                 </span>
                 <span class="exercise-set-count">${completed}/${exercise.sets.length}</span>
                 <span class="exercise-arrow">›</span>
@@ -196,6 +199,8 @@ export async function renderExerciseTracker(exerciseIndex) {
         </div>
         <span>${completedCount}/${exercise.sets.length}</span>
       </header>
+
+      ${exercise.imageUrl ? `<div class="exercise-tracker-image"><img src="${escapeHtml(exercise.imageUrl)}" alt="${escapeHtml(exercise.name)}"></div>` : ""}
 
       <section class="exercise-instruction card">
         <div>

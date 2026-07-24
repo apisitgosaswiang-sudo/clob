@@ -9,6 +9,7 @@ import {
 const STORAGE_KEY = "clob_exercises_v3_custom";
 const LEGACY_STORAGE_KEY = "clob_exercises_v2";
 const PREFS_KEY = "clob_exercise_prefs_v1";
+const CORE_IMAGE_STORAGE_KEY = "clob_core_exercise_images_v1";
 
 export const EXERCISE_CATEGORIES = [
   "Squat", "Hinge", "Push", "Pull", "Lunge", "Core",
@@ -44,25 +45,76 @@ function seed(id, name, category, primaryMuscle, secondaryMuscles, equipment, di
   return {
     id, name, category, primaryMuscle, secondaryMuscles,
     equipment, difficulty, coachTip,
-    videoUrl: "", gifUrl: "", notes: "",
+    videoUrl: "", gifUrl: "", imageUrl: "", imagePath: "", notes: "",
     builtIn: true, createdAt: 1, updatedAt: 1
   };
 }
 
+function loadCoreImageOverrides() {
+  try {
+    return JSON.parse(localStorage.getItem(CORE_IMAGE_STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveCoreImageOverrideLocal(id, payload) {
+  const current = loadCoreImageOverrides();
+  current[id] = payload;
+  localStorage.setItem(CORE_IMAGE_STORAGE_KEY, JSON.stringify(current));
+}
+
+// รวมเฉพาะ imageUrl/imagePath ของท่า Core เข้ากับข้อมูลต้นฉบับที่ bundle มากับแอป
+// ฟิลด์อื่นๆ ของท่า Core ยังคงอิงจาก SEED_EXERCISES เสมอ แก้ไม่ได้
+function applyCoreImageOverrides(core, source) {
+  const merged = { ...core };
+  Object.entries(source || {}).forEach(([id, value]) => {
+    if (merged[id] && value?.builtIn) {
+      merged[id] = { ...merged[id], imageUrl: value.imageUrl || "", imagePath: value.imagePath || "" };
+    }
+  });
+  return merged;
+}
+
 export async function loadExerciseLibrary() {
   // Core exercises are bundled with the app and are never replaced by Firebase.
-  // Firebase/localStorage contains only trainer-created custom exercises.
+  // Firebase/localStorage contains only trainer-created custom exercises,
+  // plus an optional image override for Core exercises (name/category/etc. still fixed).
   const core = Object.fromEntries(SEED_EXERCISES.map((item) => [item.id, item]));
   const remote = await getExercises();
 
   if (remote && typeof remote === "object") {
     const custom = normalizeCustomExercises(remote);
     saveLocal(custom);
-    return [...Object.values(core), ...Object.values(custom)];
+    Object.entries(remote).forEach(([id, value]) => {
+      if (value?.builtIn && core[id]) saveCoreImageOverrideLocal(id, value);
+    });
+    const coreWithImages = applyCoreImageOverrides(core, remote);
+    return [...Object.values(coreWithImages), ...Object.values(custom)];
   }
 
   const custom = loadLocal();
-  return [...Object.values(core), ...Object.values(custom)];
+  const coreWithImages = applyCoreImageOverrides(core, loadCoreImageOverrides());
+  return [...Object.values(coreWithImages), ...Object.values(custom)];
+}
+
+// อัปเดตเฉพาะรูปภาพของท่า Core (ฟิลด์อื่นแก้ไม่ได้ ยังคงยึดตาม SEED_EXERCISES เสมอ)
+export async function saveCoreExerciseImage(coreExercise, imageUrl, imagePath) {
+  if (!coreExercise?.builtIn) {
+    throw new Error("ฟังก์ชันนี้ใช้ได้เฉพาะท่า Core เท่านั้น");
+  }
+  const payload = {
+    id: coreExercise.id,
+    builtIn: true,
+    imageUrl: imageUrl || "",
+    imagePath: imagePath || ""
+  };
+  saveCoreImageOverrideLocal(coreExercise.id, payload);
+  const savedRemotely = await saveExerciseRemote(coreExercise.id, payload);
+  if (!savedRemotely) {
+    console.warn("Core exercise image saved locally because Firebase was unavailable.");
+  }
+  return { ...coreExercise, imageUrl: payload.imageUrl, imagePath: payload.imagePath };
 }
 
 export async function saveExercise(exercise) {
@@ -110,6 +162,8 @@ export function createBlankExercise() {
     coachTip: "",
     videoUrl: "",
     gifUrl: "",
+    imageUrl: "",
+    imagePath: "",
     notes: "",
     builtIn: false
   };

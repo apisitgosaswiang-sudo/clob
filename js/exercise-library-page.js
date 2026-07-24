@@ -5,11 +5,14 @@ import {
   loadExercisePrefs,
   filterExercises,
   createBlankExercise,
+  createExerciseId,
   saveExercise,
+  saveCoreExerciseImage,
   removeExercise,
   toggleFavorite,
   markExerciseRecent
 } from "./exercise-library.js";
+import { uploadImage } from "./firebase.js";
 
 const app = document.querySelector("#app");
 let exercises = [];
@@ -116,7 +119,7 @@ function libraryMarkup(items) {
   return items.map(exercise => `
     <article class="exercise-card card">
       <button class="exercise-card-main" data-open-exercise="${exercise.id}">
-        <div class="exercise-visual">${esc(exercise.category.slice(0, 1))}</div>
+        <div class="exercise-visual">${exercise.imageUrl ? `<img src="${esc(exercise.imageUrl)}" alt="">` : esc(exercise.category.slice(0, 1))}</div>
         <div>
           <span>${esc(exercise.category)} · ${exercise.builtIn ? "Core" : "My Exercise"}</span>
           <h3>${esc(exercise.name)}</h3>
@@ -216,7 +219,7 @@ function openDetail(exercise) {
         <button id="close-detail">×</button>
       </div>
 
-      <div class="exercise-detail-hero">${esc(exercise.category.slice(0, 1))}</div>
+      <div class="exercise-detail-hero">${exercise.imageUrl ? `<img src="${esc(exercise.imageUrl)}" alt="">` : esc(exercise.category.slice(0, 1))}</div>
 
       <div class="exercise-detail-grid">
         <div><span>Primary</span><strong>${esc(exercise.primaryMuscle || "-")}</strong></div>
@@ -234,7 +237,9 @@ function openDetail(exercise) {
       ${exercise.gifUrl ? `<a class="exercise-link" target="_blank" rel="noopener" href="${esc(exercise.gifUrl)}">Open GIF ↗</a>` : ""}
 
       <div class="detail-actions">
-        ${exercise.builtIn ? `<span class="exercise-readonly-note">Core exercise · read only</span>` : `<button id="edit-exercise" class="button button-secondary">Edit</button>`}
+        ${exercise.builtIn
+          ? `<button id="edit-exercise" class="button button-secondary">แก้ไขรูปภาพ</button><span class="exercise-readonly-note">รายละเอียดอื่นของท่า Core แก้ไขไม่ได้</span>`
+          : `<button id="edit-exercise" class="button button-secondary">Edit</button>`}
         <button id="detail-favorite" class="button button-primary">
           ${prefs.favorites[exercise.id] ? "Unfavorite" : "Favorite"}
         </button>
@@ -255,50 +260,155 @@ function openDetail(exercise) {
   });
 }
 
+function photoPreviewMarkup(exercise) {
+  if (exercise.imageUrl) {
+    return `<img src="${esc(exercise.imageUrl)}" alt=""><button type="button" id="remove-exercise-photo" class="exercise-photo-remove" aria-label="ลบรูป">×</button>`;
+  }
+  return `<span class="exercise-photo-placeholder">ยังไม่มีรูป</span>`;
+}
+
+async function resizeExerciseImage(file) {
+  const bitmap = await createImageBitmap(file);
+  const size = 800;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const scale = Math.max(size / bitmap.width, size / bitmap.height);
+  const w = bitmap.width * scale;
+  const h = bitmap.height * scale;
+  ctx.drawImage(bitmap, (size - w) / 2, (size - h) / 2, w, h);
+
+  let blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.85));
+  if (!blob || blob.type !== "image/webp") {
+    blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+  }
+  if (!blob) throw new Error("ไม่สามารถประมวลผลรูปภาพได้");
+  return blob;
+}
+
 function openEditor(exercise) {
+  const isBuiltIn = !!exercise.builtIn;
+  const isNew = !exercise.createdAt;
+  // ต้องมี id ทันทีแม้เป็นท่าใหม่ที่ยังไม่กด Save เพราะใช้เป็น path ตอนอัปโหลดรูป
+  if (!exercise.id) exercise.id = createExerciseId(exercise.name || "");
+
   const modal = document.querySelector("#exercise-editor-modal");
   modal.hidden = false;
+
+  const disabledAttr = isBuiltIn ? "disabled" : "";
 
   modal.innerHTML = `
     <div class="builder-modal-card exercise-form-card">
       <div class="builder-modal-head">
         <div>
           <p class="section-label">EXERCISE</p>
-          <h2>${exercise.id ? "Edit Exercise" : "New Exercise"}</h2>
+          <h2>${isBuiltIn ? "Core Exercise" : (isNew ? "New Exercise" : "Edit Exercise")}</h2>
         </div>
         <button id="close-editor">×</button>
       </div>
 
+      <div class="exercise-photo-field">
+        <span>รูปท่าออกกำลังกาย</span>
+        <div id="exercise-photo-preview" class="exercise-photo-preview">${photoPreviewMarkup(exercise)}</div>
+        <input type="file" id="exercise-photo-input" accept="image/*" hidden>
+        <button type="button" id="exercise-photo-trigger" class="button button-secondary">${exercise.imageUrl ? "เปลี่ยนรูป" : "+ เพิ่มรูป"}</button>
+        <p id="exercise-photo-status" class="exercise-photo-status"></p>
+        ${isBuiltIn ? `<p class="exercise-readonly-note">ท่า Core แก้ไขได้เฉพาะรูปภาพ รายละเอียดอื่นด้านล่างล็อกไว้</p>` : ""}
+      </div>
+
       <form id="exercise-form">
-        <label class="exercise-form-field"><span>Name</span><input name="name" required value="${esc(exercise.name)}"></label>
+        <label class="exercise-form-field"><span>Name</span><input name="name" required value="${esc(exercise.name)}" ${disabledAttr}></label>
         <div class="exercise-form-grid">
           <label class="exercise-form-field"><span>Category</span>
-            <select name="category">${EXERCISE_CATEGORIES.map(item => `<option ${item === exercise.category ? "selected" : ""}>${item}</option>`).join("")}</select>
+            <select name="category" ${disabledAttr}>${EXERCISE_CATEGORIES.map(item => `<option ${item === exercise.category ? "selected" : ""}>${item}</option>`).join("")}</select>
           </label>
           <label class="exercise-form-field"><span>Level</span>
-            <select name="difficulty">${["Beginner","Intermediate","Advanced"].map(item => `<option ${item === exercise.difficulty ? "selected" : ""}>${item}</option>`).join("")}</select>
+            <select name="difficulty" ${disabledAttr}>${["Beginner","Intermediate","Advanced"].map(item => `<option ${item === exercise.difficulty ? "selected" : ""}>${item}</option>`).join("")}</select>
           </label>
         </div>
         <div class="exercise-form-grid">
-          <label class="exercise-form-field"><span>Primary Muscle</span><input name="primaryMuscle" value="${esc(exercise.primaryMuscle)}"></label>
-          <label class="exercise-form-field"><span>Equipment</span><input name="equipment" value="${esc(exercise.equipment)}"></label>
+          <label class="exercise-form-field"><span>Primary Muscle</span><input name="primaryMuscle" value="${esc(exercise.primaryMuscle)}" ${disabledAttr}></label>
+          <label class="exercise-form-field"><span>Equipment</span><input name="equipment" value="${esc(exercise.equipment)}" ${disabledAttr}></label>
         </div>
-        <label class="exercise-form-field"><span>Secondary Muscles</span><input name="secondaryMuscles" value="${esc((exercise.secondaryMuscles || []).join(", "))}" placeholder="Glutes, Core"></label>
-        <label class="exercise-form-field"><span>Coach Tip</span><textarea name="coachTip" rows="3">${esc(exercise.coachTip)}</textarea></label>
-        <label class="exercise-form-field"><span>Video URL</span><input name="videoUrl" type="url" value="${esc(exercise.videoUrl)}"></label>
-        <label class="exercise-form-field"><span>GIF URL</span><input name="gifUrl" type="url" value="${esc(exercise.gifUrl)}"></label>
-        <label class="exercise-form-field"><span>Notes</span><textarea name="notes" rows="2">${esc(exercise.notes)}</textarea></label>
+        <label class="exercise-form-field"><span>Secondary Muscles</span><input name="secondaryMuscles" value="${esc((exercise.secondaryMuscles || []).join(", "))}" placeholder="Glutes, Core" ${disabledAttr}></label>
+        <label class="exercise-form-field"><span>Coach Tip</span><textarea name="coachTip" rows="3" ${disabledAttr}>${esc(exercise.coachTip)}</textarea></label>
+        <label class="exercise-form-field"><span>Video URL</span><input name="videoUrl" type="url" value="${esc(exercise.videoUrl)}" ${disabledAttr}></label>
+        <label class="exercise-form-field"><span>GIF URL</span><input name="gifUrl" type="url" value="${esc(exercise.gifUrl)}" ${disabledAttr}></label>
+        <label class="exercise-form-field"><span>Notes</span><textarea name="notes" rows="2" ${disabledAttr}>${esc(exercise.notes)}</textarea></label>
 
-        <button class="button button-primary" type="submit">Save</button>
-        ${exercise.id ? `<button id="delete-exercise" class="button button-danger" type="button">Delete</button>` : ""}
+        ${isBuiltIn ? "" : `
+          <button class="button button-primary" type="submit">Save</button>
+          ${!isNew ? `<button id="delete-exercise" class="button button-danger" type="button">Delete</button>` : ""}
+        `}
       </form>
     </div>
   `;
 
   document.querySelector("#close-editor").addEventListener("click", () => modal.hidden = true);
 
+  function updateLibraryCache(updated) {
+    const index = exercises.findIndex(item => item.id === updated.id);
+    if (index >= 0) exercises[index] = updated;
+    else exercises.push(updated);
+  }
+
+  function bindRemovePhotoButton() {
+    document.querySelector("#remove-exercise-photo")?.addEventListener("click", async () => {
+      exercise.imageUrl = "";
+      exercise.imagePath = "";
+      document.querySelector("#exercise-photo-preview").innerHTML = photoPreviewMarkup(exercise);
+      document.querySelector("#exercise-photo-trigger").textContent = "+ เพิ่มรูป";
+      if (isBuiltIn) {
+        try {
+          const updated = await saveCoreExerciseImage(exercise, "", "");
+          updateLibraryCache(updated);
+          renderLibrary();
+          toast("ลบรูปแล้ว");
+        } catch (error) {
+          toast(error.message || "ลบรูปไม่สำเร็จ");
+        }
+      }
+    });
+  }
+  bindRemovePhotoButton();
+
+  document.querySelector("#exercise-photo-trigger").addEventListener("click", () => {
+    document.querySelector("#exercise-photo-input").click();
+  });
+
+  document.querySelector("#exercise-photo-input").addEventListener("change", async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const status = document.querySelector("#exercise-photo-status");
+    status.textContent = "กำลังอัปโหลด...";
+    try {
+      const blob = await resizeExerciseImage(file);
+      const extension = blob.type === "image/jpeg" ? "jpg" : "webp";
+      const path = `members/_exercises/${exercise.id}/photo_${Date.now()}.${extension}`;
+      const upload = await uploadImage(path, blob);
+      exercise.imageUrl = upload.url;
+      exercise.imagePath = upload.fullPath;
+
+      if (isBuiltIn) {
+        const updated = await saveCoreExerciseImage(exercise, upload.url, upload.fullPath);
+        updateLibraryCache(updated);
+        renderLibrary();
+      }
+
+      document.querySelector("#exercise-photo-preview").innerHTML = photoPreviewMarkup(exercise);
+      document.querySelector("#exercise-photo-trigger").textContent = "เปลี่ยนรูป";
+      bindRemovePhotoButton();
+      status.textContent = "อัปโหลดสำเร็จ";
+      setTimeout(() => { if (status) status.textContent = ""; }, 1500);
+    } catch (error) {
+      status.textContent = error.message || "อัปโหลดรูปไม่สำเร็จ กรุณาตรวจการเชื่อมต่อ";
+    }
+  });
+
   document.querySelector("#exercise-form").addEventListener("submit", async event => {
     event.preventDefault();
+    if (isBuiltIn) return;
     const data = new FormData(event.currentTarget);
     const value = {
       ...exercise,
@@ -316,9 +426,7 @@ function openEditor(exercise) {
     };
 
     const saved = await saveExercise(value);
-    const index = exercises.findIndex(item => item.id === saved.id);
-    if (index >= 0) exercises[index] = saved;
-    else exercises.push(saved);
+    updateLibraryCache(saved);
 
     modal.hidden = true;
     renderLibrary();
@@ -327,6 +435,7 @@ function openEditor(exercise) {
 
   document.querySelector("#delete-exercise")?.addEventListener("click", async () => {
     if (!window.confirm(`Delete ${exercise.name}?`)) return;
+
     await removeExercise(exercise.id);
     exercises = exercises.filter(item => item.id !== exercise.id);
     modal.hidden = true;

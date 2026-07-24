@@ -7,6 +7,7 @@ import {
   getPrograms,
   getMemberWorkoutSessions
 } from "./firebase.js";
+import { loadExerciseLibrary } from "./exercise-library.js";
 
 const DEMO_MEMBERS = {
   "12345": {
@@ -144,16 +145,17 @@ const DEFAULT_MEMBER = {
 };
 
 export async function loadMember(code) {
-  const [remote, assignment, programs, remoteSessions] = await Promise.all([
+  const [remote, assignment, programs, remoteSessions, exerciseLibrary] = await Promise.all([
     getMemberByCode(code),
     getMemberProgram(code),
     getPrograms(),
-    getMemberWorkoutSessions(code)
+    getMemberWorkoutSessions(code),
+    loadExerciseLibrary()
   ]);
   const source = remote || DEMO_MEMBERS[code] || DEFAULT_MEMBER;
   const activeProgram = resolveActiveProgram(assignment, programs, remoteSessions);
   if (activeProgram) {
-    source.workout = programToWorkout(activeProgram, assignment, remoteSessions);
+    source.workout = programToWorkout(activeProgram, assignment, remoteSessions, exerciseLibrary);
   }
   return normalizeMember(code, source);
 }
@@ -210,9 +212,10 @@ function pickNextDay(program, days, remoteSessions) {
   return days[(lastIndex + 1) % days.length];
 }
 
-function programToWorkout(program, assignment, remoteSessions) {
+function programToWorkout(program, assignment, remoteSessions, exerciseLibrary) {
   const days = Array.isArray(program.days) ? program.days : [];
   const day = pickNextDay(program, days, remoteSessions) || days[0] || { id: program.id, name: program.name, exercises: [] };
+  const libraryMap = Object.fromEntries((exerciseLibrary || []).map((item) => [item.id, item]));
   return {
     id: `${program.id}:${day.id}`,
     title: day.name || program.name,
@@ -227,7 +230,8 @@ function programToWorkout(program, assignment, remoteSessions) {
       targetReps: String(exercise.reps || "10"),
       restSeconds: Number(exercise.rest || 90),
       defaultWeight: Number(exercise.weight || 0),
-      note: exercise.notes || ""
+      note: exercise.notes || "",
+      imageUrl: libraryMap[exercise.exerciseId]?.imageUrl || ""
     }))
   };
 }
