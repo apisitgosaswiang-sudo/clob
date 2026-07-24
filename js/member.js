@@ -212,13 +212,29 @@ function pickNextDay(program, days, remoteSessions) {
   return days[(lastIndex + 1) % days.length];
 }
 
+function isSameCalendarDay(a, b) {
+  const d1 = new Date(Number(a || 0));
+  const d2 = new Date(Number(b || 0));
+  return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+}
+
 function programToWorkout(program, assignment, remoteSessions, exerciseLibrary) {
   const days = Array.isArray(program.days) ? program.days : [];
   const day = pickNextDay(program, days, remoteSessions) || days[0] || { id: program.id, name: program.name, exercises: [] };
   const libraryMap = Object.fromEntries((exerciseLibrary || []).map((item) => [item.id, item]));
+  const workoutId = `${program.id}:${day.id}`;
+  const alreadyCompletedToday = Object.values(remoteSessions || {}).some((item) =>
+    item
+    && item.workoutId === workoutId
+    && item.status === "completed"
+    && isSameCalendarDay(item.completedAt, Date.now())
+  );
   return {
-    id: `${program.id}:${day.id}`,
-    title: day.name || program.name,
+    id: workoutId,
+    title: program.name,
+    programName: program.name,
+    dayLabel: days.length > 1 ? (day.name || "") : "",
+    alreadyCompletedToday,
     duration: Math.max(20, (day.exercises || []).length * 8),
     status: "ready",
     assignmentId: assignment.programId,
@@ -396,6 +412,19 @@ export function getWorkoutHistory(code) {
   } catch {
     return [];
   }
+}
+
+// ดึงประวัติ Workout ที่ทำสำเร็จแล้วทั้งหมดของลูกเทรนจาก Firebase (เชื่อถือได้ข้ามอุปกรณ์)
+// ใช้ local history (getWorkoutHistory) เป็นสำรองเฉพาะตอน Firebase ใช้งานไม่ได้
+export async function loadMemberWorkoutHistory(code) {
+  const remote = await getMemberWorkoutSessions(code);
+  const sessions = remote
+    ? Object.values(remote)
+    : getWorkoutHistory(code);
+
+  return sessions
+    .filter((item) => item && item.status === "completed")
+    .sort((a, b) => Number(b.completedAt || b.updatedAt || 0) - Number(a.completedAt || a.updatedAt || 0));
 }
 
 export function countCompletedSets(session) {

@@ -50,12 +50,42 @@ export async function renderWorkoutOverview() {
     session = null;
   }
 
-  if (!session || session.status === "completed") {
+  const hasActiveSessionForThisWorkout = session && session.status === "in_progress" && session.workoutId === member.workout.id;
+
+  // ทำ workout นี้สำเร็จไปแล้ววันนี้ และไม่มี session ที่กำลังทำต่ออยู่ -> ล็อกไม่ให้เริ่มซ้ำ
+  if (!hasActiveSessionForThisWorkout && member.workout.alreadyCompletedToday) {
     page(`
       <div class="workout-screen">
         <header class="workout-topbar">
           <button id="workout-back" class="back-button" aria-label="กลับ">←</button>
           <div><p>WORKOUT</p><h1>${escapeHtml(member.workout.title)}</h1></div>
+          <span class="workout-percent">DONE</span>
+        </header>
+        <section class="workout-progress-card card">
+          <div><span>สถานะวันนี้</span><strong>ทำสำเร็จแล้ว ✓</strong></div>
+          <small>ทำโปรแกรมนี้ครบแล้วสำหรับวันนี้ กลับมาใหม่พรุ่งนี้ได้เลย</small>
+        </section>
+        <section class="workout-progress-card card">
+          <div><span>โปรแกรมถัดไป</span><strong>${escapeHtml(member.workout.title)}</strong></div>
+          <small>ระบบจะเตรียมโปรแกรมนี้ไว้ให้ในรอบถัดไปตามคิวที่เทรนเนอร์จัดไว้</small>
+        </section>
+        <button id="view-workout-history" class="button button-secondary finish-workout-button">ดูประวัติที่ทำสำเร็จแล้ว</button>
+        ${memberWorkoutNav()}
+      </div>
+    `, "workout-page");
+    document.querySelector("#workout-back").onclick = () => navigate("/member");
+    document.querySelector("#view-workout-history").onclick = () => navigate("/member-workout-history");
+    document.querySelectorAll("[data-member-route]").forEach(button => button.addEventListener("click", () => navigate(button.dataset.memberRoute)));
+    document.querySelector("[data-member-progress]")?.addEventListener("click", () => navigate(`/member-progress-${code}`));
+    return;
+  }
+
+  if (!session || session.status === "completed") {
+    page(`
+      <div class="workout-screen">
+        <header class="workout-topbar">
+          <button id="workout-back" class="back-button" aria-label="กลับ">←</button>
+          <div><p>WORKOUT</p><h1>${escapeHtml(member.workout.title)}</h1>${member.workout.dayLabel ? `<small>${escapeHtml(member.workout.dayLabel)}</small>` : ""}</div>
           <span class="workout-percent">READY</span>
         </header>
         <section class="workout-progress-card card">
@@ -63,6 +93,7 @@ export async function renderWorkoutOverview() {
           <small>ระบบจะเริ่มจับเวลาเมื่อคุณกดเริ่ม ไม่สร้าง Session จากการเปิดหน้าดูเฉย ๆ</small>
         </section>
         <button id="start-workout-button" class="button button-primary finish-workout-button">เริ่มออกกำลังกาย</button>
+        <button id="view-workout-history" class="button button-text finish-workout-button">ดูประวัติที่ทำสำเร็จแล้ว</button>
         ${memberWorkoutNav()}
       </div>
     `, "workout-page");
@@ -71,6 +102,7 @@ export async function renderWorkoutOverview() {
       createWorkoutSession(code, member);
       renderWorkoutOverview();
     };
+    document.querySelector("#view-workout-history").onclick = () => navigate("/member-workout-history");
     document.querySelectorAll("[data-member-route]").forEach(button => button.addEventListener("click", () => navigate(button.dataset.memberRoute)));
     document.querySelector("[data-member-progress]")?.addEventListener("click", () => navigate(`/member-progress-${code}`));
     return;

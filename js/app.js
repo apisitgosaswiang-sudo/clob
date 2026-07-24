@@ -30,6 +30,7 @@ import { renderNutritionPage } from "./nutrition-page.js";
 import { renderTrainerNutritionPage } from "./trainer-nutrition-page.js";
 import { renderMemberHistoryPage } from "./member-history-page.js";
 import { renderMemberSchedulePage } from "./member-schedule-page.js";
+import { renderMemberWorkoutHistoryPage } from "./member-workout-history-page.js";
 
 registerRoute("/", renderLanding);
 registerRoute("/trainer-login", renderTrainerLogin);
@@ -39,6 +40,7 @@ registerRoute("/member-profile", renderMemberProfilePage);
 registerRoute("/member-weekly", renderMemberWeeklyUpdatePage);
 registerRoute("/beta-control", renderBetaControlPage);
 registerRoute("/workout", renderWorkoutOverview);
+registerRoute("/member-workout-history", renderMemberWorkoutHistoryPage);
 registerRoute("/workout-complete", renderWorkoutComplete);
 registerRoute("/trainer", renderTrainerDashboardPage);
 registerRoute("/members", renderMembersPage);
