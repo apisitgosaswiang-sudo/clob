@@ -9,7 +9,7 @@ import {
 import { trainerResetMemberPin } from "./member-security.js";
 import { loadWeeklyCheckins } from "./weekly-checkins.js";
 import { loadCheckins, latestValue, calculateChange } from "./checkins.js";
-import { loadPrograms, addProgramToQueue, loadMemberProgram, removeQueueItem, moveQueueItem, unassignProgram } from "./programs.js";
+import { loadMemberProgram } from "./programs.js";
 import { getMemberWorkoutSessions } from "./firebase.js";
 import { dateKey, loadNutritionDay } from "./nutrition.js";
 
@@ -244,11 +244,10 @@ export async function renderMemberDetail(code) {
     return;
   }
 
-  const [weekly, bodyCheckins, remoteSessions, programs, assignment, nutritionDay] = await Promise.all([
+  const [weekly, bodyCheckins, remoteSessions, assignment, nutritionDay] = await Promise.all([
     loadWeeklyCheckins(code),
     loadCheckins(code),
     getMemberWorkoutSessions(code),
-    loadPrograms(),
     loadMemberProgram(code),
     loadNutritionDay(code, dateKey())
   ]);
@@ -317,30 +316,8 @@ export async function renderMemberDetail(code) {
       </section>
 
       <section class="detail-card card">
-        <div class="detail-card-title"><div><h3>คิวโปรแกรมฝึก</h3><p>${assignment.queue.length ? `${assignment.queue.length} โปรแกรมในคิว · ไล่ตามลำดับที่ทำสำเร็จ` : "ยังไม่ได้กำหนดโปรแกรม"}</p></div></div>
-        ${assignment.queue.length ? `
-          <ol class="program-queue-list">
-            ${assignment.queue.map((item, index) => `
-              <li class="program-queue-item">
-                <span class="program-queue-index">${index + 1}</span>
-                <span class="program-queue-name">${escapeHtml(item.programName || "Program")}</span>
-                <span class="program-queue-actions">
-                  <button data-queue-up="${index}" ${index === 0 ? "disabled" : ""} aria-label="ย้ายขึ้น">↑</button>
-                  <button data-queue-down="${index}" ${index === assignment.queue.length - 1 ? "disabled" : ""} aria-label="ย้ายลง">↓</button>
-                  <button data-queue-remove="${index}" aria-label="ลบออกจากคิว">×</button>
-                </span>
-              </li>
-            `).join("")}
-          </ol>
-        ` : ""}
-        <label class="form-wide"><span>เพิ่มโปรแกรมเข้าคิว</span><select id="member-program-select">
-          <option value="">เลือก Program</option>
-          ${programs.filter((p) => p.status !== "archived").map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join("")}
-        </select></label>
-        <div class="member-program-actions">
-          <button id="assign-member-program" class="button button-primary">+ เพิ่มเข้าคิว</button>
-          ${assignment.queue.length ? `<button id="remove-member-program" class="button button-secondary">ล้างคิวทั้งหมด</button>` : ""}
-        </div>
+        <div class="detail-card-title"><div><h3>โปรแกรมฝึก</h3><p>${assignment.queue.length ? `${assignment.queue.length} โปรแกรมในคิว · ${escapeHtml(assignment.queue[0]?.programName || "")} เป็นต้นไป` : "ยังไม่ได้กำหนดโปรแกรม"}</p></div></div>
+        <button id="open-schedule" class="button button-primary">จัดตารางเทรน</button>
       </section>
 
       <section class="detail-card card">
@@ -445,36 +422,5 @@ export async function renderMemberDetail(code) {
     }
   });
   document.querySelector("#view-history")?.addEventListener("click", () => navigate(`/member-history-${member.code}`));
-  document.querySelector("#assign-member-program")?.addEventListener("click", async () => {
-    const program = programs.find((item) => item.id === document.querySelector("#member-program-select").value);
-    if (!program) { toast("กรุณาเลือก Program"); return; }
-    try { await addProgramToQueue(program, member.code, new Date().toISOString().slice(0,10)); toast("เพิ่มเข้าคิวเรียบร้อย"); setTimeout(() => renderMemberDetail(member.code), 500); }
-    catch (error) { toast(error.message || "เพิ่มเข้าคิวไม่สำเร็จ"); }
-  });
-  document.querySelector("#remove-member-program")?.addEventListener("click", async () => {
-    if (!window.confirm(`ล้างคิวโปรแกรมทั้งหมดของ ${member.name} หรือไม่?`)) return;
-    try { await unassignProgram(member.code); toast("ล้างคิวโปรแกรมแล้ว"); setTimeout(() => renderMemberDetail(member.code), 500); }
-    catch (error) { toast(error.message || "ล้างคิวไม่สำเร็จ"); }
-  });
-  document.querySelectorAll("[data-queue-up]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      try { await moveQueueItem(member.code, Number(button.dataset.queueUp), -1); renderMemberDetail(member.code); }
-      catch (error) { toast(error.message || "จัดลำดับไม่สำเร็จ"); }
-    });
-  });
-  document.querySelectorAll("[data-queue-down]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      try { await moveQueueItem(member.code, Number(button.dataset.queueDown), 1); renderMemberDetail(member.code); }
-      catch (error) { toast(error.message || "จัดลำดับไม่สำเร็จ"); }
-    });
-  });
-  document.querySelectorAll("[data-queue-remove]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const index = Number(button.dataset.queueRemove);
-      const item = assignment.queue[index];
-      if (!window.confirm(`ลบ "${item?.programName || "Program"}" ออกจากคิวหรือไม่?`)) return;
-      try { await removeQueueItem(member.code, index); toast("ลบออกจากคิวแล้ว"); renderMemberDetail(member.code); }
-      catch (error) { toast(error.message || "ลบออกจากคิวไม่สำเร็จ"); }
-    });
-  });
+  document.querySelector("#open-schedule")?.addEventListener("click", () => navigate(`/member-schedule-${member.code}`));
 }
