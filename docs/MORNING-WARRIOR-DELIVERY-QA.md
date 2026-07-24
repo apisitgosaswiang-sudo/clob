@@ -1,8 +1,8 @@
 # Morning Warrior v2 — Delivery QA
 
-วันที่ตรวจ: 23 กรกฎาคม 2026  
+วันที่ตรวจ: 24 กรกฎาคม 2026  
 ฐานเปรียบเทียบ: CLOB v2 Patch-011F1  
-ชุดส่งมอบ: Nutrition + AI Food Estimation Beta · Full Hotfix 4
+ชุดส่งมอบ: Nutrition + AI Food Estimation Beta · Full Hotfix 5
 
 ## ผลอัตโนมัติ
 
@@ -21,14 +21,17 @@
   ก่อนจองโควตา
 - ผ่าน App Check runtime test: ลำดับ initialization ถูกต้องและรับ Token ได้
   ก่อนเริ่ม AI flow
-- Service Worker cache เปลี่ยนเป็น Hotfix 4, JavaScript/CSS/JSON ใช้
+- ผ่าน AI provider fallback test: เมื่อโมเดลหลักตอบ 429 ระบบสลับโมเดลสำรอง
+  ภายใต้โควตา Morning Warrior ครั้งเดียว และหากล้มเหลวทั้งหมดจะคืนโควตา
+- Service Worker cache เปลี่ยนเป็น Hotfix 5, JavaScript/CSS/JSON ใช้
   Network-first และ PWA รีโหลดหนึ่งครั้งเมื่อ worker ใหม่เข้าควบคุม
 
 ## สิ่งที่ยังต้องตรวจหลัง Publish
 
 - การเชื่อม Firebase production จริง
 - Firebase AI Logic request และ App Check token บนโดเมนจริง
-- การวิเคราะห์รูปอาหารจริงด้วย `gemini-3.5-flash-lite`
+- การวิเคราะห์รูปอาหารจริงด้วย `gemini-3.1-flash-lite` และ fallback
+  `gemini-3.5-flash`
 - ตรวจ App Check metrics ให้มี Valid requests ก่อนเปิด Enforcement
 - การติดตั้ง/อัปเดต PWA บนอุปกรณ์จริง
 - Layout และ safe area บนโทรศัพท์จริงที่ใช้งาน

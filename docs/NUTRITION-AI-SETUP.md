@@ -2,7 +2,8 @@
 
 Status: App Check registered; production validation pending  
 Billing target: Firebase Spark, no Cloud Billing account, no payment method  
-Model: `gemini-3.5-flash-lite`
+Primary model: `gemini-3.1-flash-lite`  
+Fallback model: `gemini-3.5-flash`
 
 The manual Nutrition system works without this setup. Until App Check is ready,
 the AI button stops before reserving quota and asks the member to enter the meal
