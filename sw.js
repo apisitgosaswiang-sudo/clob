@@ -1,4 +1,4 @@
-const CACHE_NAME = "morning-warrior-v2-workout-lock-history";
+const CACHE_NAME = "morning-warrior-v2-live-session-sync";
 
 const APP_SHELL = [
   "./",
