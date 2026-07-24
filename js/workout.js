@@ -4,6 +4,7 @@ import {
   loadMember,
   createWorkoutSession,
   getActiveWorkoutSession,
+  syncSessionWithProgram,
   updateWorkoutSet,
   setCurrentExercise,
   completeWorkout,
@@ -48,6 +49,12 @@ export async function renderWorkoutOverview() {
   if (session && session.status === "in_progress" && session.workoutId !== member.workout.id && countCompletedSets(session) === 0) {
     cancelWorkoutSession(code);
     session = null;
+  }
+
+  // เทรนเนอร์อาจเพิ่มท่าใหม่เข้าโปรแกรมนี้ระหว่างที่ยังทำ session ไม่เสร็จ
+  // ดึงท่าที่เพิ่มมาใหม่มาต่อท้ายให้ทันที ไม่ต้อง Finish อันเก่าก่อน
+  if (session && session.status === "in_progress" && session.workoutId === member.workout.id) {
+    session = syncSessionWithProgram(code, member, session);
   }
 
   const hasActiveSessionForThisWorkout = session && session.status === "in_progress" && session.workoutId === member.workout.id;

@@ -329,6 +329,37 @@ export function createWorkoutSession(code, member) {
   return session;
 }
 
+// ถ้าเทรนเนอร์เพิ่มท่าใหม่เข้าไปในโปรแกรมระหว่างที่ลูกเทรนกำลังทำ session อยู่
+// (ยังไม่กด Finish) ให้ดึงท่าที่เพิ่มมาใหม่มาต่อท้าย session ปัจจุบันทันที
+// โดยไม่แตะท่าที่มีอยู่แล้ว/ทำไปแล้ว กันข้อมูลที่ทำไปแล้วหาย
+export function syncSessionWithProgram(code, member, session) {
+  if (!session || session.workoutId !== member.workout.id) return session;
+
+  const existingIds = new Set(session.exercises.map((exercise) => exercise.id));
+  const newExercises = (member.workout.exerciseList || []).filter((exercise) => !existingIds.has(exercise.id));
+  if (!newExercises.length) return session;
+
+  const appended = newExercises.map((exercise) => ({
+    ...exercise,
+    completed: false,
+    sets: Array.from({ length: exercise.targetSets }, (_, index) => ({
+      setNumber: index + 1,
+      weight: index === 0 ? exercise.defaultWeight || 0 : "",
+      reps: "",
+      rpe: "",
+      completed: false,
+      completedAt: null
+    }))
+  }));
+
+  session.exercises = [...session.exercises, ...appended];
+  session.updatedAt = Date.now();
+  saveSessionLocal(code, session);
+  saveWorkoutSession(code, session.id, session);
+
+  return session;
+}
+
 export function cancelWorkoutSession(code) {
   const session = getActiveWorkoutSession(code);
   if (!session) return;
