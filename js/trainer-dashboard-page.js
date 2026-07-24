@@ -12,11 +12,13 @@ import {
   getGreeting,
   renderAvatar
 } from "./utils.js";
+import { loadWeeklyCheckins } from "./weekly-checkins.js";
 
 const app = document.querySelector("#app");
 let members = [];
 let notifications = [];
 let profile = null;
+let checkins = [];
 
 export async function renderTrainerDashboardPage() {
   if (sessionStorage.getItem("clob_trainer") !== "true") {
@@ -24,15 +26,28 @@ export async function renderTrainerDashboardPage() {
     return;
   }
 
-  members = await loadMembers();
-  profile = await loadTrainerProfile();
+  [members, profile] = await Promise.all([loadMembers(), loadTrainerProfile()]);
+  checkins = (await Promise.all(members.map((member) => loadWeeklyCheckins(member.code))))
+    .flat()
+    .map((item) => ({ ...item, memberName: members.find((m) => m.code === item.memberCode)?.name || item.memberCode }));
   const validCodes = new Set(members.map((member) => member.code));
-  notifications = loadOnlineCoachingState().notifications.filter((item) => validCodes.has(item.memberCode));
+  const stored = loadOnlineCoachingState().notifications.filter((item) => validCodes.has(item.memberCode));
+  const submitted = checkins.filter((item) => item.reviewStatus === "submitted").map((item) => ({
+    id: `checkin-${item.memberCode}-${item.id}`,
+    memberCode: item.memberCode,
+    title: `${item.memberName} ส่ง Weekly Check-in`,
+    message: `สัปดาห์ ${item.weekStart}`,
+    type: "checkin",
+    read: false,
+    createdAt: item.updatedAt || item.createdAt,
+    route: `/weekly-checkins-${item.memberCode}`
+  }));
+  notifications = [...submitted, ...stored.filter((item) => !submitted.some((entry) => entry.id === item.id))];
   render();
 }
 
 function render() {
-  const summary = getDashboardSummary(members, []);
+  const summary = getDashboardSummary(members, checkins);
   const unreadCount = notifications.filter((item) => !item.read).length;
 
   app.innerHTML = `
@@ -178,8 +193,8 @@ function bind() {
   });
 
   document.querySelector("#waiting-review-card")?.addEventListener("click", () => {
-    const firstMember = members[0];
-    if (firstMember) navigate(`/weekly-checkins-${firstMember.code}`);
+    const firstCheckin = checkins.find((item) => item.reviewStatus === "submitted");
+    if (firstCheckin) navigate(`/weekly-checkins-${firstCheckin.memberCode}`);
   });
 
   document.querySelector("#view-members").addEventListener("click", () => {
@@ -201,10 +216,10 @@ function bind() {
   document.querySelectorAll("[data-notification-id]").forEach((button) => {
     button.addEventListener("click", () => {
       const id = button.dataset.notificationId;
-      notifications = markNotificationRead(id).notifications;
+      if (!id.startsWith("checkin-")) notifications = markNotificationRead(id).notifications;
       const code = button.dataset.memberCode;
       if (code) {
-        navigate(`/member-detail-${code}`);
+        navigate(id.startsWith("checkin-") ? `/weekly-checkins-${code}` : `/member-detail-${code}`);
       } else {
         render();
       }

@@ -1,7 +1,10 @@
 import {
   getMemberByCode,
   saveMemberActivity,
-  saveWorkoutSession
+  saveWorkoutSession,
+  deleteWorkoutSession,
+  getMemberProgram,
+  getPrograms
 } from "./firebase.js";
 
 const DEMO_MEMBERS = {
@@ -140,8 +143,38 @@ const DEFAULT_MEMBER = {
 };
 
 export async function loadMember(code) {
-  const remote = await getMemberByCode(code);
-  return normalizeMember(code, remote || DEMO_MEMBERS[code] || DEFAULT_MEMBER);
+  const [remote, assignment, programs] = await Promise.all([
+    getMemberByCode(code),
+    getMemberProgram(code),
+    getPrograms()
+  ]);
+  const source = remote || DEMO_MEMBERS[code] || DEFAULT_MEMBER;
+  if (assignment?.status === "active" && programs?.[assignment.programId]) {
+    source.workout = programToWorkout(programs[assignment.programId], assignment);
+  }
+  return normalizeMember(code, source);
+}
+
+function programToWorkout(program, assignment) {
+  const days = Array.isArray(program.days) ? program.days : [];
+  const day = days[0] || { id: program.id, name: program.name, exercises: [] };
+  return {
+    id: `${program.id}:${day.id}`,
+    title: day.name || program.name,
+    duration: Math.max(20, (day.exercises || []).length * 8),
+    status: "ready",
+    assignmentId: assignment.programId,
+    exerciseList: (day.exercises || []).map((exercise) => ({
+      id: exercise.uid || exercise.exerciseId,
+      name: exercise.name,
+      category: exercise.category || "Other",
+      targetSets: Number(exercise.sets || 3),
+      targetReps: String(exercise.reps || "10"),
+      restSeconds: Number(exercise.rest || 90),
+      defaultWeight: Number(exercise.weight || 0),
+      note: exercise.notes || ""
+    }))
+  };
 }
 
 function normalizeMember(code, source) {
@@ -219,6 +252,13 @@ export function createWorkoutSession(code, member) {
   saveWorkoutSession(code, session.id, session);
 
   return session;
+}
+
+export function cancelWorkoutSession(code) {
+  const session = getActiveWorkoutSession(code);
+  if (!session) return;
+  localStorage.removeItem(`clob_workout_session_${code}`);
+  if (session.id) deleteWorkoutSession(code, session.id);
 }
 
 export function getActiveWorkoutSession(code) {

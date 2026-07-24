@@ -1,4 +1,4 @@
-import { getAllMembers, getWorkoutSessions, saveMemberRecord, memberCodeExists } from "./firebase.js";
+import { getAllMembers, getWorkoutSessions, saveMemberRecord, memberCodeExists, deleteMemberRecord } from "./firebase.js";
 
 const DEMO_MEMBERS = {};
 
@@ -63,6 +63,25 @@ export async function saveMemberPackage(memberCode, packageData) {
   }
   saveLocalMember(code, payload);
   return payload.package;
+}
+
+export async function deleteMember(memberCode) {
+  const code = String(memberCode || "").replace(/\D/g, "").slice(0, 5);
+  if (code.length !== 5) throw new Error("รหัสสมาชิกไม่ถูกต้อง");
+  const removed = await deleteMemberRecord(code);
+  if (!removed) throw new Error("ลบสมาชิกจาก Firebase ไม่สำเร็จ");
+  const local = getLocalMembers();
+  delete local[code];
+  localStorage.setItem(LOCAL_MEMBERS_KEY, JSON.stringify(local));
+  [
+    `clob_member_program_${code}`,
+    `clob_workout_session_${code}`,
+    `clob_workout_history_${code}`,
+    `clob_weekly_checkins_${code}`,
+    `clob_coach_reviews_${code}`,
+    `clob_checkins_${code}`
+  ].forEach((key) => localStorage.removeItem(key));
+  return true;
 }
 
 function normalizePackagePayload(packageData = {}) {

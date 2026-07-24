@@ -28,6 +28,7 @@ import { renderPackageManagement } from "./package-management.js";
 import { restoreCoachSession } from "./coach-session.js";
 import { renderNutritionPage } from "./nutrition-page.js";
 import { renderTrainerNutritionPage } from "./trainer-nutrition-page.js";
+import { renderMemberHistoryPage } from "./member-history-page.js";
 
 registerRoute("/", renderLanding);
 registerRoute("/trainer-login", renderTrainerLogin);
@@ -54,6 +55,7 @@ registerPatternRoute(/^\/trainer-nutrition-([^/]+)$/, renderTrainerNutritionPage
 registerPatternRoute(/^\/weekly-checkins-([^/]+)$/, renderWeeklyCheckinPage);
 registerPatternRoute(/^\/progress-photos-([^/]+)$/, renderProgressPhotosPage);
 registerPatternRoute(/^\/progress-([^/]+)$/, renderProgressPage);
+registerPatternRoute(/^\/member-history-([^/]+)$/, renderMemberHistoryPage);
 registerPatternRoute(/^\/program-builder-(.+)$/, renderProgramBuilder);
 registerRoute("/404", () => {
   const path = window.location.hash.replace(/^#/, "");
@@ -159,7 +161,7 @@ if ("serviceWorker" in navigator) {
 
   window.addEventListener("load", () => {
     navigator.serviceWorker
-      .register("./sw.js?v=hotfix-5", { updateViaCache: "none" })
+      .register("./sw.js?v=hotfix-6", { updateViaCache: "none" })
       .then((registration) => registration.update())
       .catch((error) => {
         console.warn("Service worker registration failed:", error);

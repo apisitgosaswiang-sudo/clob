@@ -3,9 +3,15 @@ import {
   loadMembers,
   getMemberByCode,
   packageStatus,
-  sortMembers
+  sortMembers,
+  deleteMember
 } from "./members.js";
 import { trainerResetMemberPin } from "./member-security.js";
+import { loadWeeklyCheckins } from "./weekly-checkins.js";
+import { loadCheckins, latestValue, calculateChange } from "./checkins.js";
+import { loadPrograms, assignProgram, loadMemberProgram, unassignProgram } from "./programs.js";
+import { getMemberWorkoutSessions } from "./firebase.js";
+import { dateKey, loadNutritionDay } from "./nutrition.js";
 
 const app = document.querySelector("#app");
 let membersCache = [];
@@ -238,6 +244,25 @@ export async function renderMemberDetail(code) {
     return;
   }
 
+  const [weekly, bodyCheckins, remoteSessions, programs, assignedProgram, nutritionDay] = await Promise.all([
+    loadWeeklyCheckins(code),
+    loadCheckins(code),
+    getMemberWorkoutSessions(code),
+    loadPrograms(),
+    loadMemberProgram(code),
+    loadNutritionDay(code, dateKey())
+  ]);
+  const sessions = Object.values(remoteSessions || {}).sort((a,b) => Number(b.updatedAt||0)-Number(a.updatedAt||0));
+  const completedSessions = sessions.filter((item) => item.status === "completed");
+  const latestWeekly = weekly[0] || null;
+  const currentWeight = latestValue(bodyCheckins, "weight");
+  const weightChange = calculateChange(bodyCheckins, "weight");
+  const bodyFat = latestValue(bodyCheckins, "bodyFat");
+  const muscle = latestValue(bodyCheckins, "skeletalMuscle");
+  const waist = latestValue(bodyCheckins, "waist");
+  const weeklyCompleted = completedSessions.filter((item) => Date.now() - Number(item.completedAt || 0) < 7 * 86400000).length;
+  const totalMinutes = completedSessions.reduce((sum, item) => sum + Math.max(0, Math.round((Number(item.completedAt||item.updatedAt||0)-Number(item.startedAt||0))/60000)), 0);
+
   const hasPackage = member.packageName && member.packageName !== "No Package";
   const pkgStatus = packageStatus(member);
   const packageProgress = hasPackage && member.packageDaysLeft > 0
@@ -249,7 +274,7 @@ export async function renderMemberDetail(code) {
       <header class="member-detail-header">
         <button id="member-detail-back" class="back-button" aria-label="กลับ">←</button>
         <h1>Member Detail</h1>
-        <button id="edit-member" class="button button-text">แก้ไข</button>
+        <button id="member-actions" class="button button-text" aria-label="จัดการสมาชิก">⋮</button>
       </header>
 
       <section class="member-profile-card">
@@ -264,7 +289,7 @@ export async function renderMemberDetail(code) {
       </section>
 
       <section class="detail-tabs">
-        <button class="is-active">Info</button>
+        <button class="is-active">ภาพรวม</button>
         <button id="weekly-checkin-tab">Weekly</button>
         <button id="nutrition-tab">Nutrition</button>
         <button id="progress-tab">Progress</button>
@@ -272,15 +297,34 @@ export async function renderMemberDetail(code) {
         <button id="package-tab">Package</button>
       </section>
 
-      <section class="detail-card card">
-        <h3>ข้อมูลส่วนตัว</h3>
+      <section class="detail-card card member-overview-card">
+        <div class="detail-card-title"><div><h3>ภาพรวมลูกเทรน</h3><p>ข้อมูลล่าสุดที่เทรนเนอร์ควรรู้</p></div>
+        <span class="package-chip ${latestWeekly?.reviewStatus === "submitted" ? "package-expiring" : "package-active"}">${latestWeekly?.reviewStatus === "submitted" ? "รอรีวิว" : "อัปเดตแล้ว"}</span></div>
         <div class="detail-grid">
-          <div><span>รหัสสมาชิก</span><strong>${member.code}</strong></div>
-          <div><span>วันที่สมัคร</span><strong>${member.joinedAt}</strong></div>
-          <div><span>เพศ</span><strong>${member.gender}</strong></div>
-          <div><span>อายุ</span><strong>${member.age}</strong></div>
-          <div><span>น้ำหนัก</span><strong>${member.weight} kg</strong></div>
-          <div><span>ส่วนสูง</span><strong>${member.height} cm</strong></div>
+          <div><span>Workout 7 วัน</span><strong>${weeklyCompleted} ครั้ง</strong></div>
+          <div><span>เวลาออกกำลังรวม</span><strong>${totalMinutes ? `${totalMinutes} นาที` : "ยังไม่มีข้อมูล"}</strong></div>
+          <div><span>น้ำหนักล่าสุด</span><strong>${currentWeight === null ? "ยังไม่มีข้อมูล" : `${currentWeight} kg`}</strong></div>
+          <div><span>แนวโน้มน้ำหนัก</span><strong>${weightChange === null ? "ยังไม่มีข้อมูล" : `${weightChange > 0 ? "+" : ""}${weightChange} kg`}</strong></div>
+          <div><span>Workout ตามแผน</span><strong>${latestWeekly ? `${Number(latestWeekly.workoutAdherence || 0)}%` : "ยังไม่มีข้อมูล"}</strong></div>
+          <div><span>โภชนาการตามแผน</span><strong>${latestWeekly ? `${Number(latestWeekly.nutritionAdherence || 0)}%` : "ยังไม่มีข้อมูล"}</strong></div>
+          <div><span>แคลอรีวันนี้</span><strong>${nutritionDay?.target ? `${Math.round(Number(nutritionDay.summary.calories || 0))}/${Math.round(Number(nutritionDay.target.calories || 0))} kcal` : "ยังไม่มีข้อมูล"}</strong></div>
+          <div><span>แคลอรีเผาผลาญ</span><strong>${completedSessions.some((item) => Number(item.caloriesBurned) > 0) ? `${completedSessions.reduce((sum,item)=>sum+Number(item.caloriesBurned||0),0)} kcal` : "ยังไม่มีข้อมูล"}</strong></div>
+          <div><span>Body Fat</span><strong>${bodyFat === null ? "ยังไม่มีข้อมูล" : `${bodyFat}%`}</strong></div>
+          <div><span>กล้ามเนื้อ</span><strong>${muscle === null ? "ยังไม่มีข้อมูล" : `${muscle} kg`}</strong></div>
+          <div><span>รอบเอว</span><strong>${waist === null ? "ยังไม่มีข้อมูล" : `${waist} cm`}</strong></div>
+        </div>
+        ${latestWeekly ? `<p class="member-goal">นอน ${Number(latestWeekly.sleep || 0)}/10 · ความเครียด ${Number(latestWeekly.stress || 0)}/10 · พลังงาน ${Number(latestWeekly.energy || 0)}/10</p>` : `<p class="member-goal">ยังไม่มี Weekly Check-in</p>`}
+      </section>
+
+      <section class="detail-card card">
+        <div class="detail-card-title"><div><h3>โปรแกรมฝึก</h3><p>${escapeHtml(assignedProgram?.programName || "ยังไม่ได้กำหนดโปรแกรม")}</p></div></div>
+        <label class="form-wide"><span>เลือกโปรแกรม</span><select id="member-program-select">
+          <option value="">เลือก Program</option>
+          ${programs.filter((p) => p.status !== "archived").map((p) => `<option value="${escapeHtml(p.id)}" ${assignedProgram?.programId === p.id ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("")}
+        </select></label>
+        <div class="member-program-actions">
+          <button id="assign-member-program" class="button button-primary">กำหนด / เปลี่ยนโปรแกรม</button>
+          ${assignedProgram ? `<button id="remove-member-program" class="button button-secondary">นำโปรแกรมออก</button>` : ""}
         </div>
       </section>
 
@@ -335,6 +379,13 @@ export async function renderMemberDetail(code) {
       </section>
 
       <div id="member-detail-toast" class="toast" hidden></div>
+      <div id="member-action-sheet" class="builder-modal" hidden>
+        <div class="builder-modal-card"><h2>จัดการ ${escapeHtml(member.name)}</h2>
+          <button id="edit-member" class="button button-secondary">แก้ไขข้อมูล</button>
+          <button id="delete-member" class="button button-danger">ลบสมาชิก</button>
+          <button id="close-member-actions" class="button button-text">ยกเลิก</button>
+        </div>
+      </div>
     </div>
   `, "trainer-page");
 
@@ -346,12 +397,20 @@ export async function renderMemberDetail(code) {
   };
 
   document.querySelector("#member-detail-back").addEventListener("click", () => navigate("/members"));
+  document.querySelector("#member-actions").addEventListener("click", () => document.querySelector("#member-action-sheet").hidden = false);
+  document.querySelector("#close-member-actions").addEventListener("click", () => document.querySelector("#member-action-sheet").hidden = true);
   document.querySelector("#edit-member").addEventListener("click", () => navigate(`/member-edit-${member.code}`));
+  document.querySelector("#delete-member").addEventListener("click", async () => {
+    if (!window.confirm(`ยืนยันลบ “${member.name}” หรือไม่? ข้อมูลที่ผูกกับสมาชิกจะถูกลบด้วย`)) return;
+    const typed = window.prompt(`พิมพ์ชื่อ ${member.name} เพื่อยืนยัน`);
+    if (typed !== member.name) { toast("ชื่อยืนยันไม่ตรงกัน จึงยังไม่ลบสมาชิก"); return; }
+    try { await deleteMember(member.code); membersCache = membersCache.filter((item) => item.code !== member.code); navigate("/members"); }
+    catch (error) { toast(error.message || "ลบสมาชิกไม่สำเร็จ"); }
+  });
   document.querySelector("#weekly-checkin-tab").addEventListener("click", () => navigate(`/weekly-checkins-${member.code}`));
   document.querySelector("#nutrition-tab").addEventListener("click", () => navigate(`/trainer-nutrition-${member.code}`));
   document.querySelector("#progress-tab").addEventListener("click", () => navigate(`/progress-${member.code}`));
   document.querySelector("#progress-photo-tab").addEventListener("click", () => navigate(`/progress-photos-${member.code}`));
-  document.querySelector("#history-tab")?.addEventListener("click", () => toast("Workout History แบบเต็มจะมาใน Pack 05 Part 2"));
   document.querySelector("#package-tab")?.addEventListener("click", () => navigate(`/member-package-${member.code}`));
   document.querySelector("#manage-package")?.addEventListener("click", () => navigate(`/member-package-${member.code}`));
   document.querySelector("#reset-member-pin")?.addEventListener("click", async () => {
@@ -370,5 +429,16 @@ export async function renderMemberDetail(code) {
       button.textContent = "รีเซ็ต PIN";
     }
   });
-  document.querySelector("#view-history")?.addEventListener("click", () => toast("Workout History แบบเต็มจะมาใน Pack 05 Part 2"));
+  document.querySelector("#view-history")?.addEventListener("click", () => navigate(`/member-history-${member.code}`));
+  document.querySelector("#assign-member-program")?.addEventListener("click", async () => {
+    const program = programs.find((item) => item.id === document.querySelector("#member-program-select").value);
+    if (!program) { toast("กรุณาเลือก Program"); return; }
+    try { await assignProgram(program, member.code, new Date().toISOString().slice(0,10)); toast("กำหนดโปรแกรมเรียบร้อย"); setTimeout(() => renderMemberDetail(member.code), 500); }
+    catch (error) { toast(error.message || "กำหนดโปรแกรมไม่สำเร็จ"); }
+  });
+  document.querySelector("#remove-member-program")?.addEventListener("click", async () => {
+    if (!window.confirm(`นำ ${assignedProgram?.programName || "Program"} ออกจาก ${member.name} หรือไม่?`)) return;
+    try { await unassignProgram(member.code); toast("นำโปรแกรมออกแล้ว"); setTimeout(() => renderMemberDetail(member.code), 500); }
+    catch (error) { toast(error.message || "นำโปรแกรมออกไม่สำเร็จ"); }
+  });
 }

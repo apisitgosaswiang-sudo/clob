@@ -1,1 +1,1 @@
-export function renderMemberHistory(){console.log('Pack05 Part2 placeholder');}
+export { renderMemberHistoryPage as renderMemberHistory } from "./member-history-page.js";

@@ -3,7 +3,9 @@ import {
   getPrograms,
   saveProgram as saveProgramRemote,
   deleteProgram as deleteProgramRemote,
-  assignProgramToMember
+  assignProgramToMember,
+  getMemberProgram,
+  removeProgramFromMember
 } from "./firebase.js";
 
 const STORAGE_KEY = "clob_programs_v1";
@@ -150,6 +152,26 @@ export async function assignProgram(program, memberCode, effectiveDate) {
   const saved = await assignProgramToMember(memberCode, payload);
   if (!saved) throw new Error("Assign Program ลง Firebase ไม่สำเร็จ");
   return payload;
+}
+
+export async function loadMemberProgram(memberCode) {
+  const remote = await getMemberProgram(memberCode);
+  if (remote) {
+    localStorage.setItem(`clob_member_program_${memberCode}`, JSON.stringify(remote));
+    return remote;
+  }
+  try {
+    return JSON.parse(localStorage.getItem(`clob_member_program_${memberCode}`) || "null");
+  } catch {
+    return null;
+  }
+}
+
+export async function unassignProgram(memberCode) {
+  const removed = await removeProgramFromMember(memberCode);
+  if (!removed) throw new Error("นำ Program ออกจากสมาชิกไม่สำเร็จ");
+  localStorage.removeItem(`clob_member_program_${memberCode}`);
+  return true;
 }
 
 export function addDay(program) {

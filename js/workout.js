@@ -7,6 +7,7 @@ import {
   updateWorkoutSet,
   setCurrentExercise,
   completeWorkout,
+  cancelWorkoutSession,
   countCompletedSets,
   countTotalSets,
   getWorkoutProgress
@@ -44,9 +45,35 @@ export async function renderWorkoutOverview() {
 
   const member = await loadMember(code);
   let session = getActiveWorkoutSession(code);
+  if (session && session.status === "in_progress" && session.workoutId !== member.workout.id && countCompletedSets(session) === 0) {
+    cancelWorkoutSession(code);
+    session = null;
+  }
 
   if (!session || session.status === "completed") {
-    session = createWorkoutSession(code, member);
+    page(`
+      <div class="workout-screen">
+        <header class="workout-topbar">
+          <button id="workout-back" class="back-button" aria-label="กลับ">←</button>
+          <div><p>WORKOUT</p><h1>${escapeHtml(member.workout.title)}</h1></div>
+          <span class="workout-percent">READY</span>
+        </header>
+        <section class="workout-progress-card card">
+          <div><span>โปรแกรมวันนี้</span><strong>${Number(member.workout.exercises || 0)} ท่า</strong></div>
+          <small>ระบบจะเริ่มจับเวลาเมื่อคุณกดเริ่ม ไม่สร้าง Session จากการเปิดหน้าดูเฉย ๆ</small>
+        </section>
+        <button id="start-workout-button" class="button button-primary finish-workout-button">เริ่มออกกำลังกาย</button>
+        ${memberWorkoutNav()}
+      </div>
+    `, "workout-page");
+    document.querySelector("#workout-back").onclick = () => navigate("/member");
+    document.querySelector("#start-workout-button").onclick = () => {
+      createWorkoutSession(code, member);
+      renderWorkoutOverview();
+    };
+    document.querySelectorAll("[data-member-route]").forEach(button => button.addEventListener("click", () => navigate(button.dataset.memberRoute)));
+    document.querySelector("[data-member-progress]")?.addEventListener("click", () => navigate(`/member-progress-${code}`));
+    return;
   }
 
   const progress = getWorkoutProgress(session);
@@ -108,6 +135,7 @@ export async function renderWorkoutOverview() {
       <button id="finish-workout-button" class="button ${progress === 100 ? "button-primary" : "button-secondary"} finish-workout-button">
         ${progress === 100 ? "Finish Workout" : "บันทึกและกลับภายหลัง"}
       </button>
+      ${completedSets === 0 ? `<button id="cancel-workout-button" class="button button-text finish-workout-button">ยกเลิกการฝึกครั้งนี้</button>` : ""}
       ${memberWorkoutNav()}
     </div>
   `, "workout-page");
@@ -132,6 +160,11 @@ export async function renderWorkoutOverview() {
 
     completeWorkout(code, session);
     navigate("/workout-complete");
+  });
+  document.querySelector("#cancel-workout-button")?.addEventListener("click", () => {
+    if (!window.confirm("ยกเลิก Session ที่ยังไม่ได้บันทึกเซตใช่หรือไม่?")) return;
+    cancelWorkoutSession(code);
+    navigate("/member");
   });
 }
 

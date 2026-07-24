@@ -1,1 +1,6 @@
-export function renderTrainerNotes(){console.log('Pack05 Part2 placeholder');}
+export function renderTrainerNotes() {
+  return {
+    status: "ready",
+    message: "Trainer notes are available from the member overview."
+  };
+}

@@ -376,6 +376,17 @@ export async function saveWorkoutSession(code, sessionId, payload) {
   }
 }
 
+export async function deleteWorkoutSession(code, sessionId) {
+  if (!firebaseReady || !database || !dbApi) return false;
+  try {
+    await dbApi.set(dbApi.ref(database, `clob/workoutSessions/${code}/${sessionId}`), null);
+    return true;
+  } catch (error) {
+    console.warn("Could not delete workout session:", error);
+    return false;
+  }
+}
+
 export async function getNutritionTargets(memberCode) {
   if (!firebaseReady || !database || !dbApi) return null;
   try {
@@ -699,6 +710,19 @@ export async function getWorkoutSessions() {
   }
 }
 
+export async function getMemberWorkoutSessions(memberCode) {
+  if (!firebaseReady || !database || !dbApi) return null;
+  try {
+    const snapshot = await dbApi.get(
+      dbApi.ref(database, `clob/workoutSessions/${memberCode}`)
+    );
+    return snapshot.exists() ? snapshot.val() : {};
+  } catch (error) {
+    console.warn("Could not load member workout sessions:", error);
+    return null;
+  }
+}
+
 
 export async function getPrograms() {
   if (!firebaseReady || !database || !dbApi) return null;
@@ -754,6 +778,51 @@ export async function assignProgramToMember(memberCode, payload) {
     return true;
   } catch (error) {
     console.warn("Could not assign program:", error);
+    markFirebaseOperationFailed(error);
+    return false;
+  }
+}
+
+export async function getMemberProgram(memberCode) {
+  if (!firebaseReady || !database || !dbApi) return null;
+  try {
+    const snapshot = await dbApi.get(
+      dbApi.ref(database, `clob/memberPrograms/${memberCode}`)
+    );
+    return snapshot.exists() ? snapshot.val() : null;
+  } catch (error) {
+    console.warn("Could not load member program:", error);
+    return null;
+  }
+}
+
+export async function removeProgramFromMember(memberCode) {
+  if (!firebaseReady || !database || !dbApi) return false;
+  try {
+    await dbApi.set(dbApi.ref(database, `clob/memberPrograms/${memberCode}`), null);
+    return true;
+  } catch (error) {
+    console.warn("Could not remove member program:", error);
+    return false;
+  }
+}
+
+export async function deleteMemberRecord(memberCode) {
+  if (!firebaseReady || !database || !dbApi) return false;
+  try {
+    await dbApi.update(dbApi.ref(database, "clob"), {
+      [`members/${memberCode}`]: null,
+      [`memberPrograms/${memberCode}`]: null,
+      [`workoutSessions/${memberCode}`]: null,
+      [`memberActivity/${memberCode}`]: null,
+      [`progress/${memberCode}`]: null,
+      [`onlineCoaching/${memberCode}`]: null,
+      [`nutrition/${memberCode}`]: null
+    });
+    markFirebaseOperationHealthy();
+    return true;
+  } catch (error) {
+    console.warn("Could not delete member:", error);
     markFirebaseOperationFailed(error);
     return false;
   }

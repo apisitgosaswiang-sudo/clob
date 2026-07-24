@@ -45,19 +45,22 @@ export async function loadWeeklyCheckins(memberCode) {
 
 export async function saveWeekly(memberCode, checkin) {
   const now = Date.now();
+  const local = loadLocal(CHECKIN_PREFIX, memberCode);
+  const sameWeek = Object.values(local).find((item) => item.weekStart === checkin.weekStart);
   const value = {
     ...checkin,
-    id: checkin.id || createId(checkin.weekStart),
+    id: checkin.id || sameWeek?.id || createId(checkin.weekStart),
     memberCode,
-    reviewStatus: checkin.reviewStatus || "submitted",
-    createdAt: checkin.createdAt || now,
+    reviewStatus: "submitted",
+    createdAt: checkin.createdAt || sameWeek?.createdAt || now,
     updatedAt: now
   };
 
-  const local = loadLocal(CHECKIN_PREFIX, memberCode);
   local[value.id] = value;
+  const saved = await saveWeeklyCheckin(memberCode, value.id, value);
+  if (!saved) throw new Error("ส่ง Check-in ไปยัง Firebase ไม่สำเร็จ");
   localStorage.setItem(`${CHECKIN_PREFIX}${memberCode}`, JSON.stringify(local));
-  await saveWeeklyCheckin(memberCode, value.id, value);
+  window.dispatchEvent(new CustomEvent("clob:weekly-checkin-submitted", { detail: value }));
   return value;
 }
 

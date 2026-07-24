@@ -46,9 +46,10 @@ export async function renderMemberTodayPage() {
 
 function render() {
   const workoutSession = getActiveWorkoutSession(code);
-  const workoutStatus = workoutSession?.status === "completed"
+  const currentWorkoutSession = workoutSession?.workoutId === member.workout.id ? workoutSession : null;
+  const workoutStatus = currentWorkoutSession?.status === "completed"
     ? "completed"
-    : workoutSession?.status === "in_progress"
+    : currentWorkoutSession?.status === "in_progress"
       ? "in_progress"
       : "not_started";
   const missions = getMissionTasks(state.tasks, workoutStatus === "completed");
@@ -86,7 +87,7 @@ function render() {
         </header>
 
         <section class="clob-home-focus" aria-label="สิ่งสำคัญที่สุดตอนนี้">
-          ${priorityMarkup(priority, workoutSession)}
+          ${priorityMarkup(priority, currentWorkoutSession)}
         </section>
 
         <section class="clob-home-section" aria-labelledby="home-today-title">
@@ -153,7 +154,7 @@ function priorityMarkup(priority, workoutSession) {
         </div>
         <div class="clob-priority-nutrition-meta">
           <span>ทานแล้ว ${Number(nutritionDay.summary.calories || 0).toLocaleString("en-US")} / ${Number(nutritionDay.target.calories || 0).toLocaleString("en-US")} kcal</span>
-          <span>Protein ${formatMacro(nutritionDay.summary.protein)} / ${formatMacro(nutritionDay.target.protein)} g</span>
+          <span>เหลือโปรตีนอีก ${formatMacro(nutritionDay.summary.remainingProtein)} g</span>
         </div>
         <button class="clob-priority-action" data-home-route="nutrition">
           เพิ่มอาหาร <span aria-hidden="true">→</span>
@@ -382,8 +383,6 @@ function bind() {
 }
 
 function openWorkout() {
-  const active = getActiveWorkoutSession(code);
-  if (!active || active.status === "completed") createWorkoutSession(code, member);
   navigate("/workout");
 }
 
