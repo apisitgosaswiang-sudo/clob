@@ -524,21 +524,36 @@
 }
 
 .exercise-copy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
 }
 
-.exercise-copy strong,
-.exercise-copy small {
+.exercise-thumb {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.exercise-copy-text {
+  min-width: 0;
+}
+
+.exercise-copy-text strong,
+.exercise-copy-text small {
   display: block;
 }
 
-.exercise-copy strong {
+.exercise-copy-text strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.exercise-copy small {
+.exercise-copy-text small {
   margin-top: 4px;
   color: var(--muted);
   font-size: .72rem;
@@ -557,6 +572,19 @@
 
 .finish-workout-button {
   margin-top: 22px;
+}
+
+.exercise-tracker-image {
+  margin-top: 16px;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.exercise-tracker-image img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
 }
 
 .exercise-instruction {
@@ -2209,10 +2237,17 @@
   height: 52px;
   place-items: center;
   border-radius: 16px;
+  overflow: hidden;
   color: white;
   background: #09090B;
   font-size: 1.2rem;
   font-weight: 850;
+}
+
+.exercise-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .exercise-card-main span {
@@ -2269,10 +2304,17 @@
   margin-top: 18px;
   place-items: center;
   border-radius: 20px;
+  overflow: hidden;
   color: white;
   background: #09090B;
   font-size: 3rem;
   font-weight: 850;
+}
+
+.exercise-detail-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .exercise-detail-grid {
@@ -2347,6 +2389,70 @@
   display: grid;
   gap: 11px;
   margin-top: 16px;
+}
+
+.exercise-photo-field {
+  margin-top: 16px;
+}
+
+.exercise-photo-field > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: .65rem;
+  font-weight: 750;
+}
+
+.exercise-photo-preview {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 140px;
+  margin-bottom: 8px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #F4F4F5;
+}
+
+.exercise-photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.exercise-photo-placeholder {
+  color: var(--muted);
+  font-size: .75rem;
+}
+
+.exercise-photo-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  color: white;
+  background: rgba(0, 0, 0, .55);
+  font-size: .9rem;
+  line-height: 1;
+}
+
+.exercise-photo-status {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: .68rem;
+  min-height: 1em;
+}
+
+.exercise-readonly-note {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: .68rem;
+  line-height: 1.5;
 }
 
 .exercise-form-field span {
