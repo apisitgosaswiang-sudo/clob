@@ -1,4 +1,4 @@
-const CACHE_NAME = "morning-warrior-v2-grouped-history";
+const CACHE_NAME = "morning-warrior-v2-day-queue-extras";
 
 const APP_SHELL = [
   "./",
