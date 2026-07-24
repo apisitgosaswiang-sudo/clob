@@ -125,6 +125,11 @@ export async function archiveProgram(program) {
   return saveProgram(program);
 }
 
+export async function restoreProgram(program) {
+  program.status = "draft";
+  return saveProgram(program);
+}
+
 export async function removeProgram(programId) {
   const deletedRemotely = await deleteProgramRemote(programId);
   if (!deletedRemotely) {

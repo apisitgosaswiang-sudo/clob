@@ -6,6 +6,7 @@ import {
   duplicateProgram,
   saveProgram,
   archiveProgram,
+  restoreProgram,
   removeProgram,
   assignProgram,
   addDay,
@@ -134,7 +135,9 @@ function programListMarkup(programs) {
       <div class="program-card-footer">
         <span class="program-status status-${program.status}">${program.status}</span>
         <button data-duplicate="${program.id}">Duplicate</button>
-        <button data-archive="${program.id}">Archive</button>
+        ${program.status === "archived"
+          ? `<button data-restore="${program.id}">Restore</button>`
+          : `<button data-archive="${program.id}">Archive</button>`}
       </div>
     </article>
   `).join("");
@@ -176,6 +179,21 @@ function bindProgramsPage() {
       document.querySelector("#program-list").innerHTML = programListMarkup(programsCache);
       bindProgramsPage();
       showToast("Archive Program แล้ว");
+    });
+  });
+
+  document.querySelectorAll("[data-restore]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const program = programsCache.find((item) => item.id === button.dataset.restore);
+      try {
+        await restoreProgram(program);
+      } catch (error) {
+        showToast(error.message || "Restore ไม่สำเร็จ");
+        return;
+      }
+      document.querySelector("#program-list").innerHTML = programListMarkup(programsCache);
+      bindProgramsPage();
+      showToast("นำ Program กลับมาแล้ว");
     });
   });
 
