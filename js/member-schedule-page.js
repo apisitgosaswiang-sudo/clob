@@ -6,7 +6,10 @@ import {
   addProgramToQueue,
   removeQueueItem,
   moveQueueItem,
-  unassignProgram
+  unassignProgram,
+  addExtraToQueueItem,
+  removeExtraFromQueueItem,
+  getExerciseLibrary
 } from "./programs.js";
 import { escapeHtml } from "./utils.js";
 
@@ -18,18 +21,19 @@ export async function renderMemberSchedulePage(code) {
     return;
   }
 
-  const [members, programs, assignment] = await Promise.all([
+  const [members, programs, assignment, exerciseLibrary] = await Promise.all([
     loadMembers(),
     loadPrograms(),
-    loadMemberProgram(code)
+    loadMemberProgram(code),
+    getExerciseLibrary()
   ]);
   const member = getMemberByCode(members, code);
   if (!member) { navigate("/members"); return; }
 
-  render(member, programs, assignment);
+  render(member, programs, assignment, exerciseLibrary);
 }
 
-function render(member, programs, assignment) {
+function render(member, programs, assignment, exerciseLibrary) {
   const queue = assignment.queue || [];
 
   app.innerHTML = `<main class="page trainer-page"><div class="member-detail-screen">
@@ -40,29 +44,19 @@ function render(member, programs, assignment) {
 
     <section class="member-profile-card">
       <div class="member-profile-avatar">${escapeHtml(member.name.charAt(0).toUpperCase())}</div>
-      <div><h2>${escapeHtml(member.name)}</h2><small>${queue.length ? `${queue.length} โปรแกรมในคิว` : "ยังไม่มีโปรแกรมในคิว"}</small></div>
+      <div><h2>${escapeHtml(member.name)}</h2><small>${queue.length ? `${queue.length} วันในคิว` : "ยังไม่มีโปรแกรมในคิว"}</small></div>
     </section>
 
     <section class="detail-card card">
-      <div class="detail-card-title"><div><h3>คิวโปรแกรมฝึก</h3><p>${queue.length ? "ไล่ตามลำดับที่ทำสำเร็จ ทำครบแล้ววนกลับข้อแรก" : "ยังไม่ได้กำหนดโปรแกรม"}</p></div></div>
+      <div class="detail-card-title"><div><h3>คิวโปรแกรมฝึก</h3><p>${queue.length ? "ไล่ตามลำดับที่ทำสำเร็จ Day 1 › Day 2 › ... ทำครบแล้ววนกลับ Day 1 ใหม่" : "ยังไม่ได้กำหนดโปรแกรม"}</p></div></div>
 
       ${queue.length ? `
         <ol class="program-queue-list">
-          ${queue.map((item, index) => `
-            <li class="program-queue-item">
-              <span class="program-queue-index">${index + 1}</span>
-              <span class="program-queue-name">${escapeHtml(item.programName || "Program")}</span>
-              <span class="program-queue-actions">
-                <button data-queue-up="${index}" ${index === 0 ? "disabled" : ""} aria-label="ย้ายขึ้น">↑</button>
-                <button data-queue-down="${index}" ${index === queue.length - 1 ? "disabled" : ""} aria-label="ย้ายลง">↓</button>
-                <button data-queue-remove="${index}" aria-label="ลบออกจากคิว">×</button>
-              </span>
-            </li>
-          `).join("")}
+          ${queue.map((item, index) => queueItemMarkup(item, index, queue.length, exerciseLibrary)).join("")}
         </ol>
       ` : `<div class="members-empty card"><strong>ยังไม่มีโปรแกรมในคิว</strong><p>เพิ่มโปรแกรมด้านล่างเพื่อเริ่มจัดตารางเทรน</p></div>`}
 
-      <label class="form-wide"><span>เพิ่มโปรแกรมเข้าคิว</span><select id="member-program-select">
+      <label class="form-wide"><span>เพิ่มโปรแกรมเข้าคิวเป็น Day ${queue.length + 1}</span><select id="member-program-select">
         <option value="">เลือก Program</option>
         ${programs.filter((p) => p.status !== "archived").map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join("")}
       </select></label>
@@ -77,10 +71,41 @@ function render(member, programs, assignment) {
   </div></main>`;
 
   document.querySelector("#schedule-back").onclick = () => navigate(`/member-detail-${member.code}`);
-  bindActions(member, programs);
+  bindActions(member, programs, exerciseLibrary);
 }
 
-function bindActions(member, programs) {
+function queueItemMarkup(item, index, queueLength, exerciseLibrary) {
+  const extras = item.extras || [];
+  return `
+    <li class="program-queue-item-wrap">
+      <div class="program-queue-item">
+        <span class="program-queue-index">Day ${index + 1}</span>
+        <span class="program-queue-name">${escapeHtml(item.programName || "Program")}</span>
+        <span class="program-queue-actions">
+          <button data-queue-up="${index}" ${index === 0 ? "disabled" : ""} aria-label="ย้ายขึ้น">↑</button>
+          <button data-queue-down="${index}" ${index === queueLength - 1 ? "disabled" : ""} aria-label="ย้ายลง">↓</button>
+          <button data-queue-remove="${index}" aria-label="ลบออกจากคิว">×</button>
+        </span>
+      </div>
+      ${extras.length ? `
+        <ul class="queue-extras-list">
+          ${extras.map((extra) => `
+            <li>
+              <span>${escapeHtml(extra.name)} · ${escapeHtml(String(extra.sets))}×${escapeHtml(String(extra.reps))}</span>
+              <button data-remove-extra="${index}:${extra.id}" aria-label="ลบท่าพิเศษ">×</button>
+            </li>
+          `).join("")}
+        </ul>
+      ` : ""}
+      <select class="queue-extra-select" data-extra-select="${index}">
+        <option value="">+ เพิ่มท่าพิเศษสำหรับ Day ${index + 1} (แยกจากโปรแกรม)</option>
+        ${exerciseLibrary.filter((ex) => ex.status !== "archived").map((ex) => `<option value="${escapeHtml(ex.id)}">${escapeHtml(ex.name)}</option>`).join("")}
+      </select>
+    </li>
+  `;
+}
+
+function bindActions(member, programs, exerciseLibrary) {
   const toast = (message) => {
     const el = document.querySelector("#schedule-toast");
     el.textContent = message;
@@ -90,7 +115,7 @@ function bindActions(member, programs) {
 
   const refresh = async () => {
     const assignment = await loadMemberProgram(member.code);
-    render(member, programs, assignment);
+    render(member, programs, assignment, exerciseLibrary);
   };
 
   document.querySelector("#assign-member-program")?.addEventListener("click", async () => {
@@ -129,6 +154,34 @@ function bindActions(member, programs) {
         await refresh();
       } catch (error) {
         toast(error.message || "ลบออกจากคิวไม่สำเร็จ");
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-extra-select]").forEach((select) => {
+    select.addEventListener("change", async () => {
+      const index = Number(select.dataset.extraSelect);
+      const exercise = exerciseLibrary.find((item) => item.id === select.value);
+      if (!exercise) return;
+      try {
+        await addExtraToQueueItem(member.code, index, { id: exercise.id, name: exercise.name, sets: 3, reps: "10" });
+        toast(`เพิ่ม ${exercise.name} เป็นท่าพิเศษของ Day ${index + 1} แล้ว`);
+        await refresh();
+      } catch (error) {
+        toast(error.message || "เพิ่มท่าพิเศษไม่สำเร็จ");
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-remove-extra]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const [index, extraId] = button.dataset.removeExtra.split(":");
+      try {
+        await removeExtraFromQueueItem(member.code, Number(index), extraId);
+        toast("ลบท่าพิเศษแล้ว");
+        await refresh();
+      } catch (error) {
+        toast(error.message || "ลบท่าพิเศษไม่สำเร็จ");
       }
     });
   });

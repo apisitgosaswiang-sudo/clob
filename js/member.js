@@ -153,48 +153,49 @@ export async function loadMember(code) {
     loadExerciseLibrary()
   ]);
   const source = remote || DEMO_MEMBERS[code] || DEFAULT_MEMBER;
-  const activeProgram = resolveActiveProgram(assignment, programs, remoteSessions);
-  if (activeProgram) {
-    source.workout = programToWorkout(activeProgram, assignment, remoteSessions, exerciseLibrary);
+  const active = resolveActiveProgram(assignment, programs, remoteSessions);
+  if (active) {
+    source.workout = programToWorkout(active.program, active.queueItem, assignment, remoteSessions, exerciseLibrary);
   }
   return normalizeMember(code, source);
 }
 
-// เลือก "โปรแกรมที่ควรทำถัดไป" จากคิวโปรแกรมของสมาชิก (เช่น Upper > Full Body > Legs)
-// โดยดูจาก session ล่าสุดที่ทำสำเร็จของโปรแกรมไหนในคิว แล้วขยับไปโปรแกรมถัดไป
-// ถ้ายังไม่เคยทำเลย เริ่มจากโปรแกรมแรกในคิวเสมอ
+// เลือก "วันที่ควรทำถัดไป" จากคิวโปรแกรมของสมาชิก (เช่น Day 1 Upper > Day 2 Full Body > Day 3 Legs)
+// โดยดูจาก session ล่าสุดที่ทำสำเร็จของ "ตำแหน่งคิว" ไหน (ไม่ใช่แค่ programId เฉยๆ
+// เพราะโปรแกรมเดียวกันอาจถูกใส่ซ้ำหลายวันในคิวได้ แต่ละวันต้องแยกกันได้)
+// แล้วขยับไปวันถัดไป ถ้ายังไม่เคยทำเลย เริ่มจากวันแรกในคิวเสมอ
 function resolveActiveProgram(assignment, programs, remoteSessions) {
   if (assignment?.status !== "active") return null;
 
   const queue = Array.isArray(assignment?.queue) ? assignment.queue : [];
-  const validQueue = queue.filter((item) => item?.programId && programs?.[item.programId]);
+  const validQueue = queue.filter((item) => item?.programId && item?.id && programs?.[item.programId]);
   if (!validQueue.length) return null;
-  if (validQueue.length === 1) return programs[validQueue[0].programId];
+  if (validQueue.length === 1) return { program: programs[validQueue[0].programId], queueItem: validQueue[0] };
 
   const completed = Object.values(remoteSessions || {})
     .filter((item) => item
       && item.status === "completed"
       && typeof item.workoutId === "string"
-      && validQueue.some((entry) => item.workoutId.startsWith(`${entry.programId}:`)))
+      && validQueue.some((entry) => item.workoutId.startsWith(`${entry.id}:`)))
     .sort((a, b) => Number(b.completedAt || b.updatedAt || 0) - Number(a.completedAt || a.updatedAt || 0));
 
   const lastCompleted = completed[0];
-  if (!lastCompleted) return programs[validQueue[0].programId];
+  if (!lastCompleted) return { program: programs[validQueue[0].programId], queueItem: validQueue[0] };
 
-  const lastProgramId = lastCompleted.workoutId.split(":")[0];
-  const lastIndex = validQueue.findIndex((entry) => entry.programId === lastProgramId);
-  if (lastIndex === -1) return programs[validQueue[0].programId];
+  const lastQueueItemId = lastCompleted.workoutId.split(":")[0];
+  const lastIndex = validQueue.findIndex((entry) => entry.id === lastQueueItemId);
+  if (lastIndex === -1) return { program: programs[validQueue[0].programId], queueItem: validQueue[0] };
 
   const nextIndex = (lastIndex + 1) % validQueue.length;
-  return programs[validQueue[nextIndex].programId];
+  return { program: programs[validQueue[nextIndex].programId], queueItem: validQueue[nextIndex] };
 }
 
 // เลือกวันถัดไปภายในโปรแกรมเดียว (เผื่อโปรแกรมไหนมีมากกว่า 1 วัน)
 // ปกติแล้วแต่ละโปรแกรมในคิวจะมีวันเดียว ฟังก์ชันนี้จึงมักคืนวันแรกเสมอ
-function pickNextDay(program, days, remoteSessions) {
+function pickNextDay(queueItem, days, remoteSessions) {
   if (days.length <= 1) return days[0];
 
-  const prefix = `${program.id}:`;
+  const prefix = `${queueItem.id}:`;
   const completed = Object.values(remoteSessions || {})
     .filter((item) => item
       && item.status === "completed"
@@ -218,37 +219,55 @@ function isSameCalendarDay(a, b) {
   return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
 }
 
-function programToWorkout(program, assignment, remoteSessions, exerciseLibrary) {
+function programToWorkout(program, queueItem, assignment, remoteSessions, exerciseLibrary) {
   const days = Array.isArray(program.days) ? program.days : [];
-  const day = pickNextDay(program, days, remoteSessions) || days[0] || { id: program.id, name: program.name, exercises: [] };
+  const day = pickNextDay(queueItem, days, remoteSessions) || days[0] || { id: program.id, name: program.name, exercises: [] };
   const libraryMap = Object.fromEntries((exerciseLibrary || []).map((item) => [item.id, item]));
-  const workoutId = `${program.id}:${day.id}`;
+  const workoutId = `${queueItem.id}:${day.id}`;
   const alreadyCompletedToday = Object.values(remoteSessions || {}).some((item) =>
     item
     && item.workoutId === workoutId
     && item.status === "completed"
     && isSameCalendarDay(item.completedAt, Date.now())
   );
+
+  const baseExercises = (day.exercises || []).map((exercise) => ({
+    id: exercise.uid || exercise.exerciseId,
+    name: exercise.name,
+    category: exercise.category || "Other",
+    targetSets: Number(exercise.sets || 3),
+    targetReps: String(exercise.reps || "10"),
+    restSeconds: Number(exercise.rest || 90),
+    defaultWeight: Number(exercise.weight || 0),
+    note: exercise.notes || "",
+    imageUrl: libraryMap[exercise.exerciseId]?.imageUrl || "",
+    isExtra: false
+  }));
+
+  // ท่าพิเศษที่เทรนเนอร์เพิ่มเฉพาะวันนี้ (แยกจากตัวโปรแกรม) ต่อท้ายรายการท่าหลัก
+  const extraExercises = (queueItem.extras || []).map((extra) => ({
+    id: extra.id,
+    name: extra.name,
+    category: libraryMap[extra.exerciseId]?.category || "Other",
+    targetSets: Number(extra.sets || 3),
+    targetReps: String(extra.reps || "10"),
+    restSeconds: Math.round(Number(extra.restMinutes || 1.5) * 60),
+    defaultWeight: Number(extra.weight || 0),
+    note: extra.notes || "",
+    imageUrl: libraryMap[extra.exerciseId]?.imageUrl || "",
+    isExtra: true
+  }));
+
   return {
     id: workoutId,
     title: program.name,
     programName: program.name,
     dayLabel: days.length > 1 ? (day.name || "") : "",
     alreadyCompletedToday,
-    duration: Math.max(20, (day.exercises || []).length * 8),
+    duration: Math.max(20, (baseExercises.length + extraExercises.length) * 8),
     status: "ready",
     assignmentId: assignment.programId,
-    exerciseList: (day.exercises || []).map((exercise) => ({
-      id: exercise.uid || exercise.exerciseId,
-      name: exercise.name,
-      category: exercise.category || "Other",
-      targetSets: Number(exercise.sets || 3),
-      targetReps: String(exercise.reps || "10"),
-      restSeconds: Number(exercise.rest || 90),
-      defaultWeight: Number(exercise.weight || 0),
-      note: exercise.notes || "",
-      imageUrl: libraryMap[exercise.exerciseId]?.imageUrl || ""
-    }))
+    exerciseList: [...baseExercises, ...extraExercises]
   };
 }
 

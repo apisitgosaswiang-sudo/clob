@@ -148,13 +148,26 @@ function readLocalAssignment(memberCode) {
   }
 }
 
+function uid() {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+}
+
 // รองรับข้อมูลเก่าที่เคยเก็บเป็น "1 โปรแกรม/คน" (มี programId ตรงๆ)
 // แปลงให้กลายเป็นคิวที่มี 1 รายการ เพื่อไม่ให้ของเดิมพัง
+// แต่ละรายการในคิวต้องมี id เฉพาะตัว (เผื่อใช้โปรแกรมเดียวกันซ้ำหลายวัน จะได้แยกกันได้)
+// และมี extras[] สำหรับท่าพิเศษที่เทรนเนอร์เพิ่มเฉพาะวันนั้น แยกจากตัวโปรแกรมเอง
 function normalizeAssignment(raw) {
   if (!raw) return { queue: [], effectiveDate: "", assignedAt: 0, status: "unassigned" };
 
   if (Array.isArray(raw.queue)) {
-    const queue = raw.queue.filter((item) => item && item.programId);
+    const queue = raw.queue
+      .filter((item) => item && item.programId)
+      .map((item) => ({
+        id: item.id || uid(),
+        programId: item.programId,
+        programName: item.programName || "",
+        extras: Array.isArray(item.extras) ? item.extras : []
+      }));
     return {
       queue,
       effectiveDate: raw.effectiveDate || "",
@@ -165,7 +178,7 @@ function normalizeAssignment(raw) {
 
   if (raw.programId) {
     return {
-      queue: [{ programId: raw.programId, programName: raw.programName || "" }],
+      queue: [{ id: uid(), programId: raw.programId, programName: raw.programName || "", extras: [] }],
       effectiveDate: raw.effectiveDate || "",
       assignedAt: Number(raw.assignedAt || 0),
       status: raw.status || "active"
@@ -177,8 +190,15 @@ function normalizeAssignment(raw) {
 
 export async function loadMemberProgram(memberCode) {
   const remote = await getMemberProgram(memberCode);
-  const normalized = normalizeAssignment(remote || readLocalAssignment(memberCode));
+  const raw = remote || readLocalAssignment(memberCode);
+  const needsIdMigration = Array.isArray(raw?.queue) && raw.queue.some((item) => item && !item.id);
+  const normalized = normalizeAssignment(raw);
   localStorage.setItem(`clob_member_program_${memberCode}`, JSON.stringify(normalized));
+  if (needsIdMigration && normalized.queue.length) {
+    // id ที่เพิ่งสร้างต้องเขียนกลับไปเก็บถาวรทันที ไม่งั้นจะสุ่มใหม่ทุกครั้งที่โหลดหน้า
+    // ทำให้ระบบติดตามว่า "ทำวันไหนไปแล้ว" ใช้งานไม่ได้
+    assignProgramToMember(memberCode, normalized).catch(() => {});
+  }
   return normalized;
 }
 
@@ -222,6 +242,36 @@ export async function unassignProgram(memberCode) {
   if (!removed) throw new Error("นำ Program ออกจากสมาชิกไม่สำเร็จ");
   localStorage.removeItem(`clob_member_program_${memberCode}`);
   return true;
+}
+
+// เพิ่มท่าออกกำลังกายพิเศษให้เฉพาะ "วัน" นั้นๆ ในคิว แยกต่างหากจากตัวโปรแกรมหลัก
+// (โปรแกรมหลักยังใช้ซ้ำกับสมาชิกคนอื่นได้ปกติ ไม่ถูกแก้ไข)
+export async function addExtraToQueueItem(memberCode, queueIndex, exercise) {
+  const current = normalizeAssignment(await loadMemberProgram(memberCode));
+  const queue = current.queue.map((item, index) => {
+    if (index !== queueIndex) return item;
+    const extra = {
+      id: uid(),
+      exerciseId: exercise.id,
+      name: exercise.name,
+      sets: exercise.sets || 3,
+      reps: exercise.reps || "10",
+      weight: exercise.weight || "",
+      restMinutes: exercise.restMinutes || "",
+      notes: exercise.notes || ""
+    };
+    return { ...item, extras: [...(item.extras || []), extra] };
+  });
+  return persistQueue(memberCode, queue, current.effectiveDate);
+}
+
+export async function removeExtraFromQueueItem(memberCode, queueIndex, extraId) {
+  const current = normalizeAssignment(await loadMemberProgram(memberCode));
+  const queue = current.queue.map((item, index) => {
+    if (index !== queueIndex) return item;
+    return { ...item, extras: (item.extras || []).filter((extra) => extra.id !== extraId) };
+  });
+  return persistQueue(memberCode, queue, current.effectiveDate);
 }
 
 export function addDay(program) {
