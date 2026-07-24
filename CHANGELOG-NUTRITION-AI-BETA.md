@@ -16,6 +16,11 @@
 - AI quota transaction: 3 calls/member/day and 60 calls/project/day.
 - Failed AI analysis releases its reserved app quota.
 - Manual fallback for setup, App Check, quota, network and model errors.
+- Hotfix 5 uses `gemini-3.1-flash-lite` first and automatically retries
+  `gemini-3.5-flash` for provider 429/capacity/unavailable errors without
+  charging a second Morning Warrior app quota.
+- Failed provider requests now show that the app quota was returned instead of
+  warning that the retry already used another quota.
 
 ## Cost and privacy
 
@@ -46,6 +51,8 @@ not renamed, moved or deleted.
   member-data filename now use Morning Warrior.
 - Hotfix 4 supersedes the original endorsement treatment: visible logo lockups
   now use the larger `Morning Warrior` name without `by CLOB`.
+- Hotfix 5 preserves that lockup while replacing only the AI recovery flow and
+  PWA cache version.
 - Manifest `id`, Firebase root `clob`, local/session storage keys, browser event
   names and CSS namespaces remain unchanged to preserve installed-app identity
   and existing member data.

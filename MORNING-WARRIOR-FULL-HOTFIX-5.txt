@@ -1,0 +1,47 @@
+MORNING WARRIOR v2 — NUTRITION AI BETA — FULL HOTFIX 5
+Master brand: CLOB
+Build date: 24 July 2026
+
+This is a complete replacement build. It does not require an earlier patch to
+be installed first.
+
+Fixed in this build:
+- Changed the primary food-analysis model to the established stable
+  `gemini-3.1-flash-lite`.
+- Added automatic failover to the separately provisioned stable
+  `gemini-3.5-flash` model when the primary model returns 429, capacity,
+  unavailable or model-not-found errors.
+- Kept one Morning Warrior app-quota reservation per completed analysis even
+  when provider failover is needed.
+- Released the reserved app quota when every provider model fails.
+- Removed the incorrect retry warning that said another quota was used after a
+  failed and refunded analysis.
+- Added a clear refunded-quota retry state and separated provider 429 messages
+  from Morning Warrior's 3-per-member / 60-per-project limits.
+- Advanced the application entry module and PWA cache to Hotfix 5 so the AI
+  recovery code replaces cached JavaScript after deployment.
+
+Preserved from Full Hotfix 4:
+- Morning Warrior logo lockups use the larger product name without visible
+  `by CLOB`.
+- App Check initializes before Auth, Realtime Database, Storage and AI.
+- A valid App Check token is required before reserving AI quota.
+- The registered reCAPTCHA Enterprise public site key for
+  `workout-tracker-ten-bay.vercel.app`.
+- Programs, Packages, Workouts, Progress, Nutrition and five-tab member
+  navigation.
+- AI limits of 3 analyses per member per day and 60 analyses for the whole
+  project per day.
+
+Install:
+1. Back up the current public folder.
+2. Replace the entire public root with all files and folders from this ZIP.
+3. Publish/deploy.
+4. Open the production PWA. It can reload itself once while Hotfix 5 takes
+   control; this is expected.
+5. Confirm the version label shows Hotfix 5.
+6. Test one AI food-photo analysis on the production domain.
+
+Firebase data remains under the existing `clob` paths. This build does not
+delete or migrate existing members, Programs, Packages, Workouts, Progress or
+Nutrition records.

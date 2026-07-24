@@ -1,6 +1,6 @@
 MORNING WARRIOR v2 — NUTRITION + AI FOOD ESTIMATION BETA
 Master brand: CLOB
-Build type: Full Hotfix 4 (complete replacement)
+Build type: Full Hotfix 5 (complete replacement)
 
 ไฟล์ ZIP นี้เป็นแพตช์แบบวางทับ โดยโครงสร้างภายในเริ่มจาก Root ของเว็บ
 เช่น index.html, sw.js, css/, js/, assets/ และ docs/
@@ -11,7 +11,7 @@ Build type: Full Hotfix 4 (complete replacement)
    (ไม่ต้องติดตั้ง Patch-011F1 ก่อน)
 3. เลือก Replace/Overwrite เมื่อระบบถาม
 4. Publish/Deploy ตามวิธีเดิมของระบบ
-5. เปิด PWA แล้วรอให้ระบบ Reload อัตโนมัติ 1 ครั้งเมื่อ Hotfix 4 เข้าควบคุม
+5. เปิด PWA แล้วรอให้ระบบ Reload อัตโนมัติ 1 ครั้งเมื่อ Hotfix 5 เข้าควบคุม
 
 สิ่งที่รวมอยู่ในแพตช์
 - ชื่อแอป Morning Warrior โดยไม่มีข้อความ by CLOB ในโลโก้ และขยายชื่อให้เด่นขึ้น
@@ -22,12 +22,14 @@ Build type: Full Hotfix 4 (complete replacement)
 - เพิ่ม แก้ไข ลบอาหาร กรอกเอง Recent Foods และ Personal Food Library
 - เทรนเนอร์ตั้งเป้าหมาย ตรวจย้อนหลัง แก้อาหาร และส่ง Feedback
 - AI ประเมินอาหารจากรูป โดยสมาชิกตรวจแก้ก่อนยืนยันบันทึก
+- AI ใช้ gemini-3.1-flash-lite เป็นโมเดลหลัก และสลับไป gemini-3.5-flash
+  อัตโนมัติเมื่อโมเดลหลักตอบ 429 หรือไม่พร้อมใช้งาน
 - AI สูงสุด 3 ครั้ง/สมาชิก/วัน และ 60 ครั้ง/ทั้งระบบ/วัน
 - รูปเดิมใช้ Cache, การวิเคราะห์ที่ล้มเหลวคืนโควตา และไม่เก็บรูปถาวร
 
 สถานะ AI ก่อนตั้งค่า Firebase
 - ระบบ Nutrition แบบกรอกเองใช้งานได้ทันที
-- Full Hotfix 4 ใส่ Public Site key ของ App Check ไว้แล้ว; ไม่ต้องเพิ่ม
+- Full Hotfix 5 ใส่ Public Site key ของ App Check ไว้แล้ว; ไม่ต้องเพิ่ม
   reCAPTCHA script, TOKEN, USER_ACTION, endpoint หรือ API_KEY เอง
 - อ่าน docs/NUTRITION-AI-SETUP.md และตั้งค่า Firebase AI Logic + App Check
 - ใส่เฉพาะ Public reCAPTCHA Enterprise Site Key ใน js/config.js

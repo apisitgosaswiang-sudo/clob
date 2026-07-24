@@ -1,4 +1,4 @@
-const CACHE_NAME = "morning-warrior-v2-nutrition-ai-beta-hotfix-4";
+const CACHE_NAME = "morning-warrior-v2-nutrition-ai-beta-hotfix-5";
 
 const APP_SHELL = [
   "./",
@@ -10,7 +10,7 @@ const APP_SHELL = [
   "./css/app.css",
   "./css/design-system.css",
   "./css/nutrition.css",
-  "./js/app.js?v=hotfix-4",
+  "./js/app.js?v=hotfix-5",
   "./js/config.js",
   "./js/coach-session.js",
   "./js/firebase.js",
