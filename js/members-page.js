@@ -9,8 +9,6 @@ import {
 import { trainerResetMemberPin } from "./member-security.js";
 import { loadWeeklyCheckins } from "./weekly-checkins.js";
 import { loadCheckins, latestValue, calculateChange } from "./checkins.js";
-import { loadMemberProgram } from "./programs.js";
-import { getMemberWorkoutSessions } from "./firebase.js";
 import { dateKey, loadNutritionDay } from "./nutrition.js";
 
 const app = document.querySelector("#app");
@@ -244,23 +242,17 @@ export async function renderMemberDetail(code) {
     return;
   }
 
-  const [weekly, bodyCheckins, remoteSessions, assignment, nutritionDay] = await Promise.all([
+  const [weekly, bodyCheckins, nutritionDay] = await Promise.all([
     loadWeeklyCheckins(code),
     loadCheckins(code),
-    getMemberWorkoutSessions(code),
-    loadMemberProgram(code),
     loadNutritionDay(code, dateKey())
   ]);
-  const sessions = Object.values(remoteSessions || {}).sort((a,b) => Number(b.updatedAt||0)-Number(a.updatedAt||0));
-  const completedSessions = sessions.filter((item) => item.status === "completed");
   const latestWeekly = weekly[0] || null;
   const currentWeight = latestValue(bodyCheckins, "weight");
   const weightChange = calculateChange(bodyCheckins, "weight");
   const bodyFat = latestValue(bodyCheckins, "bodyFat");
   const muscle = latestValue(bodyCheckins, "skeletalMuscle");
   const waist = latestValue(bodyCheckins, "waist");
-  const weeklyCompleted = completedSessions.filter((item) => Date.now() - Number(item.completedAt || 0) < 7 * 86400000).length;
-  const totalMinutes = completedSessions.reduce((sum, item) => sum + Math.max(0, Math.round((Number(item.completedAt||item.updatedAt||0)-Number(item.startedAt||0))/60000)), 0);
 
   const hasPackage = member.packageName && member.packageName !== "No Package";
   const pkgStatus = packageStatus(member);
@@ -289,6 +281,7 @@ export async function renderMemberDetail(code) {
 
       <section class="detail-tabs">
         <button class="is-active">ภาพรวม</button>
+        <button id="workout-tab">Workout</button>
         <button id="weekly-checkin-tab">Weekly</button>
         <button id="nutrition-tab">Nutrition</button>
         <button id="progress-tab">Progress</button>
@@ -297,27 +290,18 @@ export async function renderMemberDetail(code) {
       </section>
 
       <section class="detail-card card member-overview-card">
-        <div class="detail-card-title"><div><h3>ภาพรวมลูกเทรน</h3><p>ข้อมูลล่าสุดที่เทรนเนอร์ควรรู้</p></div>
+        <div class="detail-card-title"><div><h3>ภาพรวมลูกเทรน</h3><p>ข้อมูลร่างกายและโภชนาการล่าสุด</p></div>
         <span class="package-chip ${latestWeekly?.reviewStatus === "submitted" ? "package-expiring" : "package-active"}">${latestWeekly?.reviewStatus === "submitted" ? "รอรีวิว" : "อัปเดตแล้ว"}</span></div>
         <div class="detail-grid">
-          <div><span>Workout 7 วัน</span><strong>${weeklyCompleted} ครั้ง</strong></div>
-          <div><span>เวลาออกกำลังรวม</span><strong>${totalMinutes ? `${totalMinutes} นาที` : "ยังไม่มีข้อมูล"}</strong></div>
           <div><span>น้ำหนักล่าสุด</span><strong>${currentWeight === null ? "ยังไม่มีข้อมูล" : `${currentWeight} kg`}</strong></div>
           <div><span>แนวโน้มน้ำหนัก</span><strong>${weightChange === null ? "ยังไม่มีข้อมูล" : `${weightChange > 0 ? "+" : ""}${weightChange} kg`}</strong></div>
-          <div><span>Workout ตามแผน</span><strong>${latestWeekly ? `${Number(latestWeekly.workoutAdherence || 0)}%` : "ยังไม่มีข้อมูล"}</strong></div>
           <div><span>โภชนาการตามแผน</span><strong>${latestWeekly ? `${Number(latestWeekly.nutritionAdherence || 0)}%` : "ยังไม่มีข้อมูล"}</strong></div>
           <div><span>แคลอรีวันนี้</span><strong>${nutritionDay?.target ? `${Math.round(Number(nutritionDay.summary.calories || 0))}/${Math.round(Number(nutritionDay.target.calories || 0))} kcal` : "ยังไม่มีข้อมูล"}</strong></div>
-          <div><span>แคลอรีเผาผลาญ</span><strong>${completedSessions.some((item) => Number(item.caloriesBurned) > 0) ? `${completedSessions.reduce((sum,item)=>sum+Number(item.caloriesBurned||0),0)} kcal` : "ยังไม่มีข้อมูล"}</strong></div>
           <div><span>Body Fat</span><strong>${bodyFat === null ? "ยังไม่มีข้อมูล" : `${bodyFat}%`}</strong></div>
           <div><span>กล้ามเนื้อ</span><strong>${muscle === null ? "ยังไม่มีข้อมูล" : `${muscle} kg`}</strong></div>
           <div><span>รอบเอว</span><strong>${waist === null ? "ยังไม่มีข้อมูล" : `${waist} cm`}</strong></div>
         </div>
         ${latestWeekly ? `<p class="member-goal">นอน ${Number(latestWeekly.sleep || 0)}/10 · ความเครียด ${Number(latestWeekly.stress || 0)}/10 · พลังงาน ${Number(latestWeekly.energy || 0)}/10</p>` : `<p class="member-goal">ยังไม่มี Weekly Check-in</p>`}
-      </section>
-
-      <section class="detail-card card">
-        <div class="detail-card-title"><div><h3>โปรแกรมฝึก</h3><p>${assignment.queue.length ? `${assignment.queue.length} โปรแกรมในคิว · ${escapeHtml(assignment.queue[0]?.programName || "")} เป็นต้นไป` : "ยังไม่ได้กำหนดโปรแกรม"}</p></div></div>
-        <button id="open-schedule" class="button button-primary">จัดตารางเทรน</button>
       </section>
 
       <section class="detail-card card">
@@ -357,17 +341,6 @@ export async function renderMemberDetail(code) {
         </div>
         <small>Trainer ไม่สามารถดู PIN เดิมได้ หากสมาชิกลืม PIN ให้รีเซ็ตเพื่อให้ตั้งใหม่ตอนเข้าสู่ระบบครั้งถัดไป</small>
         <button id="reset-member-pin" class="button button-secondary" type="button" ${member.security?.pinHash ? "" : "disabled"}>รีเซ็ต PIN</button>
-      </section>
-
-      <section class="detail-card card">
-        <h3>Workout ล่าสุด</h3>
-        <div class="latest-workout-row">
-          <div>
-            <strong>${escapeHtml(member.workoutTitle)}</strong>
-            <span>${member.workoutStatus.replace("_", " ")}</span>
-          </div>
-          <button id="view-history">ดูประวัติ</button>
-        </div>
       </section>
 
       <div id="member-detail-toast" class="toast" hidden></div>
@@ -421,6 +394,5 @@ export async function renderMemberDetail(code) {
       button.textContent = "รีเซ็ต PIN";
     }
   });
-  document.querySelector("#view-history")?.addEventListener("click", () => navigate(`/member-history-${member.code}`));
-  document.querySelector("#open-schedule")?.addEventListener("click", () => navigate(`/member-schedule-${member.code}`));
+  document.querySelector("#workout-tab").addEventListener("click", () => navigate(`/member-history-${member.code}`));
 }

@@ -87,6 +87,14 @@ function render() {
           ${attentionMarkup()}
         </section>
 
+        <section class="dashboard-section-head">
+          <div>
+            <p class="section-label">WORKOUT</p>
+            <h2>ภาพรวมการฝึกทุกคน</h2>
+          </div>
+          <button id="view-workout-overview">ดูทั้งหมด</button>
+        </section>
+
         <section class="dashboard-section-head notification-head">
           <div>
             <p class="section-label">UPDATES</p>
@@ -199,6 +207,10 @@ function bind() {
 
   document.querySelector("#view-members").addEventListener("click", () => {
     navigate("/members");
+  });
+
+  document.querySelector("#view-workout-overview").addEventListener("click", () => {
+    navigate("/workout-overview");
   });
 
   document.querySelectorAll("[data-member-code]").forEach((button) => {
