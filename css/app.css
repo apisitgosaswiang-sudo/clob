@@ -1415,6 +1415,58 @@
   padding: 16px;
 }
 
+.history-day-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  cursor: pointer;
+  transition: transform .12s ease;
+}
+
+.history-day-card:active {
+  transform: scale(.98);
+}
+
+.workout-day-exercise {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.workout-day-exercise-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.workout-day-exercise-head span {
+  color: var(--muted);
+  font-size: .75rem;
+  font-weight: 700;
+}
+
+.workout-day-sets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.workout-day-set-chip {
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #F4F4F5;
+  color: var(--muted);
+  font-size: .7rem;
+  font-weight: 600;
+}
+
+.workout-day-set-chip.is-done {
+  color: var(--success);
+  background: rgba(22, 163, 74, .1);
+}
+
 .detail-card h3 {
   margin: 0;
   font-size: .95rem;
