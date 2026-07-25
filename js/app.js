@@ -90,11 +90,18 @@ window.addEventListener("hashchange", () => {
   import("./firebase.js").then(({ getFirebaseStatus }) => updateFirebaseBanner(getFirebaseStatus()));
 });
 
-async function bootstrap() {
+function bootstrap() {
   restoreCoachSession();
-  const firebaseStatus = await initializeFirebase();
+  // Render the application immediately. Firebase initialization must never block
+  // the first screen, especially on iOS Safari/PWA where network/auth can stall.
   startRouter();
-  updateFirebaseBanner(firebaseStatus);
+
+  initializeFirebase()
+    .then((firebaseStatus) => updateFirebaseBanner(firebaseStatus))
+    .catch((error) => {
+      console.error("Firebase initialization failed:", error);
+      updateFirebaseBanner({ ready: false, error });
+    });
 }
 
 bootstrap();
@@ -109,7 +116,7 @@ if ("serviceWorker" in navigator) {
 
   window.addEventListener("load", () => {
     navigator.serviceWorker
-      .register("./sw.js?v=hotfix-6", { updateViaCache: "none" })
+      .register("./sw.js?v=boot-recovery-1", { updateViaCache: "none" })
       .then((registration) => registration.update())
       .catch((error) => {
         console.warn("Service worker registration failed:", error);
