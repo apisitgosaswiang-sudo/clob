@@ -1347,6 +1347,27 @@
   min-height: 38px;
 }
 
+/* ปุ่ม ⋮ เดิมจางเกินไปจนหาไม่เจอ — ทำเป็นวงกลมมีพื้นหลังให้ดูกดได้ (v3) */
+#member-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+#member-actions:active {
+  background: var(--surface-soft);
+}
+
 .member-profile-card {
   display: flex;
   align-items: center;
@@ -4689,4 +4710,589 @@ svg {
     width: 100%;
     max-width: none;
   }
+}
+
+/* ===== ข้ามท่าออกกำลังกาย (v3) ===== */
+.skip-exercise-button {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.set-row.is-skipped {
+  opacity: .55;
+}
+
+.set-row.is-skipped .set-input {
+  text-decoration: line-through;
+}
+
+.exercise-skipped-note {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: .78rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.skip-reason-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(24, 24, 27, .45);
+}
+
+.skip-reason-card {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+  border-radius: 22px 22px 0 0;
+  background: var(--surface);
+}
+
+.skip-reason-card strong {
+  margin-bottom: 6px;
+  font-size: .95rem;
+}
+
+.skip-reason-card button {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: .86rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.skip-reason-card .skip-reason-cancel {
+  margin-top: 4px;
+  border: none;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ===== การเคลื่อนไหวแบบ minimal (v3) ===== */
+@keyframes clob-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.page {
+  animation: clob-fade-in .15s ease-out;
+}
+
+@keyframes clob-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+.set-save-button.is-complete {
+  animation: clob-pop .18s ease-out;
+}
+
+.toast:not([hidden]) {
+  animation: clob-fade-in .18s ease-out;
+}
+
+/* เคารพการตั้งค่าปิดการเคลื่อนไหวของผู้ใช้ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
+
+/* ===== RPE / Volume / เหตุผลข้ามท่า (v3) ===== */
+.workout-day-set-chip.is-skipped {
+  color: var(--warning);
+  background: rgba(217, 119, 6, .12);
+  text-decoration: line-through;
+}
+
+.workout-day-skip-note {
+  margin: 0 0 8px;
+  color: var(--warning);
+  font-size: .74rem;
+  font-weight: 700;
+}
+
+.workout-day-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  font-size: .72rem;
+  color: var(--muted);
+}
+
+.workout-day-metrics strong {
+  color: var(--text);
+  font-size: .8rem;
+}
+
+/* ===== เลือกท่าได้หลายท่าต่อเนื่อง (v3) ===== */
+.modal-hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 600;
+}
+
+.exercise-library-list button.is-added {
+  color: var(--success);
+  background: rgba(22, 163, 74, .1);
+  opacity: 1;
+}
+
+#finish-exercise-modal {
+  margin-top: 12px;
+}
+
+/* ===== Banner รีวิวใหม่จากโค้ช (v3) ===== */
+.home-review-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: none;
+  border-radius: 16px;
+  background: var(--primary-soft);
+  text-align: left;
+  cursor: pointer;
+}
+
+.home-review-banner strong {
+  display: block;
+  color: var(--primary);
+  font-size: .86rem;
+}
+
+.home-review-banner small {
+  color: var(--muted);
+  font-size: .72rem;
+}
+
+.home-review-dot {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--primary);
+}
+
+/* ===== การ์ดคำติชมจากโค้ช ฝั่งลูกเทรน (v3) ===== */
+.coach-review-card {
+  margin-bottom: 16px;
+}
+
+.coach-review-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.coach-review-date {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 600;
+}
+
+.coach-review-block {
+  padding-top: 10px;
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.coach-review-block span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: .7rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.coach-review-block p {
+  margin: 0;
+  font-size: .86rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.coach-review-card.is-waiting strong {
+  display: block;
+  margin: 6px 0 4px;
+  font-size: .92rem;
+}
+
+/* ===== สรุปอัตโนมัติในฟอร์ม Weekly (v3) ===== */
+.weekly-auto-summary {
+  margin: 14px 0;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--surface-soft);
+  border: 1px dashed var(--line);
+}
+
+.weekly-auto-title {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.weekly-auto-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.weekly-auto-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: .68rem;
+}
+
+.weekly-auto-grid strong {
+  font-size: .9rem;
+}
+
+.weekly-auto-link {
+  margin-top: 10px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-size: .76rem;
+  font-weight: 700;
+}
+
+/* ===== น้ำหนักครั้งก่อน (v3) ===== */
+.exercise-last-weight {
+  margin: 10px 0 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+.exercise-last-weight strong {
+  color: var(--text);
+}
+
+/* ===== กราฟความก้าวหน้า ฝั่งลูกเทรน (v3) ===== */
+.member-chart-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.member-chart-tabs button {
+  flex: 1;
+  padding: 8px 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: .74rem;
+  font-weight: 700;
+}
+
+.member-chart-tabs button.is-active {
+  border-color: transparent;
+  background: var(--primary);
+  color: #fff;
+}
+
+.member-chart-wrap {
+  padding: 8px 4px;
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.member-chart-wrap canvas {
+  width: 100%;
+  height: 200px;
+  display: block;
+}
+
+/* ===== Streak badge (v3) ===== */
+.home-streak-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(217, 119, 6, .12), rgba(225, 29, 72, .1));
+}
+
+.home-streak-badge span[aria-hidden] {
+  font-size: 1.1rem;
+}
+
+.home-streak-badge strong {
+  font-size: .9rem;
+}
+
+.home-streak-badge small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: .72rem;
+}
+
+/* ===== การ์ดเตือนสัญญาณผิดปกติ (v3) ===== */
+.attention-card.is-alert {
+  border-left: 3px solid var(--warning);
+}
+
+/* ===== Toast พร้อมปุ่มเลิกทำ (v3) ===== */
+.toast .toast-undo {
+  margin-left: 12px;
+  padding: 4px 12px;
+  border: 1px solid rgba(255, 255, 255, .35);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: .74rem;
+  font-weight: 700;
+}
+
+/* ===== Rest Timer แบบวงแหวน (v3 Batch 2) ===== */
+.rest-ring-wrap {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  margin: 6px auto 14px;
+}
+
+.rest-ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.rest-ring-track,
+.rest-ring-progress {
+  fill: none;
+  stroke-width: 8;
+}
+
+.rest-ring-track {
+  stroke: rgba(255, 255, 255, .18);
+}
+
+.rest-ring-progress {
+  stroke: var(--primary);
+  stroke-linecap: round;
+  transition: stroke-dashoffset .95s linear;
+}
+
+.rest-ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.rest-ring-label strong {
+  font-size: 2.4rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.rest-ring-label span {
+  font-size: .72rem;
+  opacity: .7;
+}
+
+/* ===== ป๊อปอัพฉลอง PR ใหม่ (v3 Batch 2) ===== */
+.pr-celebration {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  z-index: 70;
+  display: grid;
+  gap: 2px;
+  padding: 14px 22px;
+  border-radius: 16px;
+  background: var(--text);
+  color: #fff;
+  text-align: center;
+  transform: translateX(-50%);
+  box-shadow: 0 18px 50px rgba(24, 24, 27, .28);
+  animation: clob-pr-pop .32s ease-out;
+}
+
+.pr-celebration strong {
+  font-size: 1rem;
+}
+
+.pr-celebration span {
+  font-size: .78rem;
+  opacity: .85;
+}
+
+@keyframes clob-pr-pop {
+  0% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(.94); }
+  60% { transform: translateX(-50%) translateY(0) scale(1.03); }
+  100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rest-ring-progress { transition: none; }
+}
+
+/* ===== การ์ดเตือนเรื่องเจ็บ (v3 Batch 2) ===== */
+.attention-card.is-alert.is-danger {
+  border-left-color: var(--danger);
+}
+
+/* ===== รายการ PR ฝั่งลูกเทรน (v3 Batch 2) ===== */
+.member-pr-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.member-pr-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.member-pr-item span {
+  font-size: .84rem;
+  font-weight: 600;
+}
+
+.member-pr-item strong {
+  color: var(--primary);
+  font-size: .88rem;
+}
+
+/* ===== เทียบรูปก่อน-หลัง (v3 Batch 2) ===== */
+.photo-compare {
+  margin-bottom: 16px;
+}
+
+.photo-compare-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.photo-compare-head span {
+  color: var(--muted);
+  font-size: .72rem;
+}
+
+.photo-compare-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.photo-compare-controls label span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: .7rem;
+  font-weight: 700;
+}
+
+.photo-compare-controls select {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: .78rem;
+}
+
+.photo-compare-rows {
+  display: grid;
+  gap: 14px;
+}
+
+.photo-compare-row p {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: .7rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.photo-compare-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.photo-compare-pair figure {
+  margin: 0;
+}
+
+.photo-compare-pair img {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 12px;
+  display: block;
+}
+
+.photo-compare-pair figcaption {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: .68rem;
+  text-align: center;
+}
+
+/* ===== ปุ่ม AI ช่วยร่างคำติชม (v3 Batch 2) ===== */
+.ai-draft-button {
+  width: 100%;
+  padding: 12px;
+  border: 1px dashed var(--primary);
+  border-radius: 12px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: .84rem;
+  font-weight: 700;
+}
+
+.ai-draft-button:disabled {
+  opacity: .6;
+}
+
+.ai-draft-note {
+  margin: 6px 0 14px;
+  color: var(--muted);
+  font-size: .7rem;
+  line-height: 1.5;
 }

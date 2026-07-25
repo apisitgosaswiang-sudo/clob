@@ -1,17 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap');
 
 :root {
-  --primary: #E11D48;
-  --primary-dark: #BE123C;
-  --primary-soft: #FFF1F2;
-  --text: #18181B;
-  --muted: #71717A;
-  --line: #E4E4E7;
-  --surface: #FFFFFF;
-  --surface-soft: #FAFAFA;
-  --success: #16A34A;
-  --warning: #D97706;
-  --danger: #DC2626;
+  /* สี/โทนหลักทั้งหมดประกาศที่ design-system.css ที่เดียว (แหล่งความจริงเดียว) */
   --radius-sm: 12px;
   --radius-md: 16px;
   --radius-lg: 20px;
