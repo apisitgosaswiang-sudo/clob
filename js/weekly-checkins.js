@@ -65,10 +65,11 @@ export async function saveWeekly(memberCode, checkin) {
 }
 
 export async function removeWeekly(memberCode, checkinId) {
+  const deleted = await deleteWeeklyCheckin(memberCode, checkinId);
+  if (!deleted) throw new Error("ลบ Weekly Check-in จาก Firebase ไม่สำเร็จ");
   const local = loadLocal(CHECKIN_PREFIX, memberCode);
   delete local[checkinId];
   localStorage.setItem(`${CHECKIN_PREFIX}${memberCode}`, JSON.stringify(local));
-  await deleteWeeklyCheckin(memberCode, checkinId);
 }
 
 export async function loadReviews(memberCode) {
@@ -91,11 +92,12 @@ export async function saveReview(memberCode, checkinId, review) {
     updatedAt: now
   };
 
+  const saved = await saveCoachReview(memberCode, checkinId, value);
+  if (!saved) throw new Error("บันทึก Coach Review ไปยัง Firebase ไม่สำเร็จ");
+
   const local = loadLocal(REVIEW_PREFIX, memberCode);
   local[checkinId] = value;
   localStorage.setItem(`${REVIEW_PREFIX}${memberCode}`, JSON.stringify(local));
-
-  await saveCoachReview(memberCode, checkinId, value);
   return value;
 }
 

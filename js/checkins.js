@@ -54,17 +54,21 @@ export async function saveCheckin(memberCode, checkin) {
     updatedAt: now
   };
 
+  const saved = await saveMemberCheckin(memberCode, value.id, value);
+  if (!saved) {
+    throw new Error("บันทึก Check-in ไปยัง Firebase ไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง");
+  }
   local[value.id] = value;
   saveLocal(memberCode, local);
-  await saveMemberCheckin(memberCode, value.id, value);
   return value;
 }
 
 export async function removeCheckin(memberCode, checkinId) {
+  const deleted = await deleteMemberCheckin(memberCode, checkinId);
+  if (!deleted) throw new Error("ลบ Check-in จาก Firebase ไม่สำเร็จ");
   const local = loadLocal(memberCode);
   delete local[checkinId];
   saveLocal(memberCode, local);
-  await deleteMemberCheckin(memberCode, checkinId);
 }
 
 export function calculateChange(checkins, field) {

@@ -3,6 +3,7 @@ import { loadMembers } from "./members.js";
 import {
   loadPrograms,
   createBlankProgram,
+  saveProgramDraftLocal,
   duplicateProgram,
   saveProgram,
   archiveProgram,
@@ -207,7 +208,7 @@ function bindProgramsPage() {
   });
 
   document.querySelector("#new-program").addEventListener("click", () => {
-    const program = createBlankProgram();
+    const program = saveProgramDraftLocal(createBlankProgram());
     programsCache.unshift(program);
     navigate(`/program-builder-${program.id}`);
   });
@@ -215,8 +216,8 @@ function bindProgramsPage() {
   document.querySelector("#program-search").addEventListener("input", (event) => {
     const query = event.target.value.trim().toLowerCase();
     const filtered = programsCache.filter((program) =>
-      program.name.toLowerCase().includes(query) ||
-      program.goal.toLowerCase().includes(query)
+      String(program.name || "").toLowerCase().includes(query) ||
+      String(program.goal || "").toLowerCase().includes(query)
     );
     document.querySelector("#program-list").innerHTML = programListMarkup(filtered);
     bindProgramsPage();

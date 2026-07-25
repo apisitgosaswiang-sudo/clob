@@ -300,10 +300,14 @@ function bind() {
       event.stopPropagation();
       const item = checkins.find((entry) => entry.id === button.dataset.deleteCheckin);
       if (!window.confirm(`Delete check-in on ${formatDate(item.date)}?`)) return;
-      await removeCheckin(member.code, item.id);
-      checkins = checkins.filter((entry) => entry.id !== item.id);
-      render();
-      toast("Deleted");
+      try {
+        await removeCheckin(member.code, item.id);
+        checkins = checkins.filter((entry) => entry.id !== item.id);
+        render();
+        toast("Deleted");
+      } catch (error) {
+        toast(error?.message || "Delete failed");
+      }
     });
   });
 }
@@ -378,7 +382,13 @@ function openEditor(checkin) {
       note: String(data.get("note")).trim()
     };
 
-    const saved = await saveCheckin(member.code, value);
+    let saved;
+    try {
+      saved = await saveCheckin(member.code, value);
+    } catch (error) {
+      toast(error?.message || "Save failed");
+      return;
+    }
     const index = checkins.findIndex((item) => item.id === saved.id);
     if (index >= 0) checkins[index] = saved;
     else checkins.push(saved);

@@ -814,7 +814,6 @@ export async function deleteMemberRecord(memberCode) {
       [`members/${memberCode}`]: null,
       [`memberPrograms/${memberCode}`]: null,
       [`workoutSessions/${memberCode}`]: null,
-      [`memberActivity/${memberCode}`]: null,
       [`progress/${memberCode}`]: null,
       [`onlineCoaching/${memberCode}`]: null,
       [`nutrition/${memberCode}`]: null

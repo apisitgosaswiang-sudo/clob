@@ -209,10 +209,14 @@ function bind() {
     button.addEventListener("click", async () => {
       const item = checkins.find((entry) => entry.id === button.dataset.deleteWeekly);
       if (!window.confirm(`Delete check-in for ${formatDate(item.weekStart)}?`)) return;
-      await removeWeekly(member.code, item.id);
-      checkins = checkins.filter((entry) => entry.id !== item.id);
-      render();
-      toast("Deleted");
+      try {
+        await removeWeekly(member.code, item.id);
+        checkins = checkins.filter((entry) => entry.id !== item.id);
+        render();
+        toast("Deleted");
+      } catch (error) {
+        toast(error?.message || "Delete failed");
+      }
     });
   });
 }
@@ -272,7 +276,9 @@ function openCheckinEditor(checkin) {
   document.querySelector("#weekly-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const saved = await saveWeekly(member.code, {
+    let saved;
+    try {
+      saved = await saveWeekly(member.code, {
       ...checkin,
       weekStart: String(data.get("weekStart")),
       weight: cleanNumber(data.get("weight")),
@@ -404,7 +410,9 @@ function openReviewEditor(checkin) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
 
-    const review = await saveReview(member.code, checkin.id, {
+    let review;
+    try {
+      review = await saveReview(member.code, checkin.id, {
       feedback: String(data.get("feedback")).trim(),
       nextWeekGoal: String(data.get("nextWeekGoal")).trim(),
       calories: cleanNumber(data.get("calories")),
@@ -414,7 +422,11 @@ function openReviewEditor(checkin) {
       trainingAdjustment: String(data.get("trainingAdjustment")).trim(),
       status: "reviewed",
       reviewedAt: Date.now()
-    });
+      });
+    } catch (error) {
+      toast(error?.message || "บันทึกรีวิวไม่สำเร็จ");
+      return;
+    }
 
     // ตัวเลขโภชนาการที่โค้ชกรอกในรีวิว ต้องถูกนำไปตั้งเป็นเป้าหมายจริงของลูกเทรนด้วย
     // (โค้ชพิมพ์เองจึงถือเป็นการยืนยันแล้ว ไม่ต้องถามซ้ำ)

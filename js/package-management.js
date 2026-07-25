@@ -4,6 +4,7 @@ import { escapeHtml } from "./utils.js";
 
 const app = document.querySelector("#app");
 const PACKAGE_CACHE_KEY = "clob_packages_cache_v1";
+const PACKAGE_PENDING_KEY = "clob_packages_pending_v1";
 
 export const DEFAULT_PACKAGE_CATALOG = [
   {
@@ -57,9 +58,11 @@ function normalizePackage(id, value = {}) {
 }
 
 export async function loadPackageCatalog({ includeInactive = true } = {}) {
+  await syncPendingPackages();
+  const local = loadPackageCache();
   const remote = await getPackages();
-  const customPackages = remote !== null ? remote : loadPackageCache();
-  if (remote !== null) savePackageCache(remote);
+  const customPackages = remote !== null ? { ...remote, ...local } : local;
+  if (remote !== null) savePackageCache(customPackages);
   const merged = new Map(DEFAULT_PACKAGE_CATALOG.map((item) => [item.id, normalizePackage(item.id, item)]));
   Object.entries(customPackages).forEach(([id, value]) => merged.set(id, normalizePackage(id, value)));
   const list = [...merged.values()].sort((a, b) => a.name.localeCompare(b.name));
@@ -77,6 +80,31 @@ function loadPackageCache() {
 
 function savePackageCache(value) {
   localStorage.setItem(PACKAGE_CACHE_KEY, JSON.stringify(value || {}));
+}
+
+function loadPendingPackages() {
+  try {
+    const value = JSON.parse(localStorage.getItem(PACKAGE_PENDING_KEY) || "{}");
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
+}
+
+function savePendingPackages(value) {
+  localStorage.setItem(PACKAGE_PENDING_KEY, JSON.stringify(value || {}));
+}
+
+async function syncPendingPackages() {
+  const pending = loadPendingPackages();
+  let changed = false;
+  for (const [id, payload] of Object.entries(pending)) {
+    if (await savePackageRecord(id, payload)) {
+      delete pending[id];
+      changed = true;
+    }
+  }
+  if (changed) savePendingPackages(pending);
 }
 
 function packageIdFromName(name) {
@@ -208,20 +236,18 @@ function renderEditor(pkg) {
       features: String(data.get("features") || "").split("\n").map((item) => item.trim()).filter(Boolean),
       updatedAt: Date.now()
     };
-    const saved = await savePackageRecord(id, payload);
-
-    if (!saved) {
-      button.disabled = false;
-      button.textContent = "บันทึก";
-      showPackageToast("บันทึก Firebase ไม่สำเร็จ");
-      return;
-    }
-
     const cache = loadPackageCache();
     cache[id] = payload;
     savePackageCache(cache);
+
+    const saved = await savePackageRecord(id, payload);
+    const pending = loadPendingPackages();
+    if (saved) delete pending[id];
+    else pending[id] = payload;
+    savePendingPackages(pending);
+
     close();
-    showPackageToast("บันทึกแพ็กเกจแล้ว");
+    showPackageToast(saved ? "บันทึกแพ็กเกจแล้ว" : "บันทึกในเครื่องแล้ว รอซิงก์ Firebase");
     setTimeout(() => {
       if (window.location.hash === "#/packages") renderPackageManagement();
     }, 350);

@@ -52,15 +52,23 @@ export async function getExerciseLibrary() {
 }
 
 export async function loadPrograms() {
+  const local = normalizeProgramMap(loadProgramsLocal());
   const remote = await getPrograms();
 
   if (remote !== null) {
     const normalizedRemote = normalizeProgramMap(remote);
-    saveProgramsLocal(normalizedRemote);
-    return Object.values(normalizedRemote);
+    // Merge instead of replacing local data. This protects locally-created drafts
+    // when Firebase is reachable but the remote collection is still empty/stale.
+    const merged = { ...normalizedRemote, ...local };
+    Object.keys(normalizedRemote).forEach((id) => {
+      const localUpdated = Number(local[id]?.updatedAt || 0);
+      const remoteUpdated = Number(normalizedRemote[id]?.updatedAt || 0);
+      if (remoteUpdated >= localUpdated) merged[id] = normalizedRemote[id];
+    });
+    saveProgramsLocal(merged);
+    return Object.values(merged);
   }
 
-  const local = normalizeProgramMap(loadProgramsLocal());
   return Object.values(local);
 }
 
@@ -82,6 +90,14 @@ export function createBlankProgram() {
       }
     ]
   };
+}
+
+export function saveProgramDraftLocal(program) {
+  const normalized = normalizeProgram(program);
+  const local = loadProgramsLocal();
+  local[normalized.id] = normalized;
+  saveProgramsLocal(local);
+  return normalized;
 }
 
 export function duplicateProgram(program) {
@@ -230,7 +246,12 @@ async function persistQueue(memberCode, queue, effectiveDate) {
 
 export async function addProgramToQueue(program, memberCode, effectiveDate) {
   const current = normalizeAssignment(await loadMemberProgram(memberCode));
-  const queue = [...current.queue, { programId: program.id, programName: program.name }];
+  const queue = [...current.queue, {
+    id: uid(),
+    programId: program.id,
+    programName: program.name,
+    extras: []
+  }];
   return persistQueue(memberCode, queue, current.effectiveDate || effectiveDate);
 }
 
