@@ -276,35 +276,41 @@ function openCheckinEditor(checkin) {
   document.querySelector("#weekly-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    let saved;
+    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+    if (submitButton) submitButton.disabled = true;
+
     try {
-      saved = await saveWeekly(member.code, {
-      ...checkin,
-      weekStart: String(data.get("weekStart")),
-      weight: cleanNumber(data.get("weight")),
-      bodyFat: cleanNumber(data.get("bodyFat")),
-      sleep: Number(data.get("sleep")),
-      stress: Number(data.get("stress")),
-      energy: Number(data.get("energy")),
-      hunger: Number(data.get("hunger")),
-      workoutAdherence: Number(data.get("workoutAdherence")),
-      nutritionAdherence: Number(data.get("nutritionAdherence")),
-      stepsAverage: cleanNumber(data.get("stepsAverage")),
-      cardioMinutes: cleanNumber(data.get("cardioMinutes")),
-      wins: String(data.get("wins")).trim(),
-      challenges: String(data.get("challenges")).trim(),
-      coachQuestion: String(data.get("coachQuestion")).trim(),
-      reviewStatus: checkin.reviewStatus || "submitted"
-    });
+      const saved = await saveWeekly(member.code, {
+        ...checkin,
+        weekStart: String(data.get("weekStart")),
+        weight: cleanNumber(data.get("weight")),
+        bodyFat: cleanNumber(data.get("bodyFat")),
+        sleep: Number(data.get("sleep")),
+        stress: Number(data.get("stress")),
+        energy: Number(data.get("energy")),
+        hunger: Number(data.get("hunger")),
+        workoutAdherence: Number(data.get("workoutAdherence")),
+        nutritionAdherence: Number(data.get("nutritionAdherence")),
+        stepsAverage: cleanNumber(data.get("stepsAverage")),
+        cardioMinutes: cleanNumber(data.get("cardioMinutes")),
+        wins: String(data.get("wins")).trim(),
+        challenges: String(data.get("challenges")).trim(),
+        coachQuestion: String(data.get("coachQuestion")).trim(),
+        reviewStatus: checkin.reviewStatus || "submitted"
+      });
 
-    const index = checkins.findIndex((item) => item.id === saved.id);
-    if (index >= 0) checkins[index] = saved;
-    else checkins.push(saved);
+      const index = checkins.findIndex((item) => item.id === saved.id);
+      if (index >= 0) checkins[index] = saved;
+      else checkins.push(saved);
 
-    checkins.sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart));
-    modal.hidden = true;
-    render();
-    toast("Saved");
+      checkins.sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart));
+      modal.hidden = true;
+      render();
+      toast("บันทึกแล้ว");
+    } catch (error) {
+      toast(error?.message || "บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง");
+      if (submitButton) submitButton.disabled = false;
+    }
   });
 }
 
