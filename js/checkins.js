@@ -1,3 +1,4 @@
+import { dateKey } from "./nutrition.js";
 import {
   getMemberCheckins,
   saveMemberCheckin,
@@ -10,7 +11,7 @@ export function createBlankCheckin(memberCode) {
   return {
     id: "",
     memberCode,
-    date: new Date().toISOString().slice(0, 10),
+    date: dateKey(),
     weight: "",
     bodyFat: "",
     skeletalMuscle: "",
@@ -72,6 +73,18 @@ export function calculateChange(checkins, field) {
     .map((item) => Number(item[field]))
     .filter((value) => Number.isFinite(value));
 
+  if (valid.length < 2) return null;
+  return Number((valid[0] - valid[valid.length - 1]).toFixed(1));
+}
+
+// แนวโน้มช่วง N วันล่าสุด (ค่าล่าสุด - ค่าเก่าสุดภายในช่วง) — คู่กับ calculateChange ที่เทียบจากครั้งแรกสุด
+export function calculateRecentChange(checkins, field, days = 30) {
+  const cutoff = Date.now() - days * 86400000;
+  const valid = checkins
+    .filter((item) => item[field] !== "" && item[field] !== null && item[field] !== undefined)
+    .filter((item) => new Date(item.date || 0).getTime() >= cutoff)
+    .map((item) => Number(item[field]))
+    .filter((value) => Number.isFinite(value));
   if (valid.length < 2) return null;
   return Number((valid[0] - valid[valid.length - 1]).toFixed(1));
 }

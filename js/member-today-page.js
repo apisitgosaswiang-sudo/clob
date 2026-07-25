@@ -10,12 +10,16 @@ import { chooseHomePriority } from "./dynamic-home.js";
 import { formatToday } from "./emotion-design.js";
 import { escapeHtml, renderAvatar } from "./utils.js";
 import { dateKey, loadNutritionDay } from "./nutrition.js";
+import { loadReviews } from "./weekly-checkins.js";
+import { retryPendingSession, calculateStreakDays, loadMemberWorkoutHistory } from "./member.js";
 
 const app = document.querySelector("#app");
 let member = null;
 let state = null;
 let checkins = [];
 let nutritionDay = null;
+let unreadReview = null;
+let streakDays = 0;
 let code = "";
 
 export async function renderMemberTodayPage() {
@@ -34,20 +38,42 @@ export async function renderMemberTodayPage() {
     </main>
   `;
 
-  [member, state, checkins, nutritionDay] = await Promise.all([
+  let reviews = {};
+  let sessions = [];
+  [member, state, checkins, nutritionDay, reviews, sessions] = await Promise.all([
     loadMember(code),
     loadTodayState(code),
     loadCheckins(code),
-    loadNutritionDay(code, dateKey())
+    loadNutritionDay(code, dateKey()),
+    loadReviews(code),
+    loadMemberWorkoutHistory(code)
   ]);
 
+  streakDays = calculateStreakDays(sessions);
+
+  unreadReview = findUnreadReview(code, reviews);
+
+  // ถ้ามีข้อมูล workout ที่ค้างซิงค์ไว้ตอนเน็ตหลุด ลองส่งใหม่เงียบๆ
+  retryPendingSession(code);
+
   render();
+}
+
+// หารีวิวใหม่จากโค้ชที่ลูกเทรนยังไม่เคยเปิดดู
+function findUnreadReview(memberCode, reviews) {
+  const list = Object.values(reviews || {}).filter((item) => item && item.status === "reviewed");
+  if (!list.length) return null;
+  const latest = list.sort((a, b) => Number(b.reviewedAt || 0) - Number(a.reviewedAt || 0))[0];
+  const seen = localStorage.getItem(`clob_seen_review_${memberCode}`);
+  return String(latest.id) === String(seen) ? null : latest;
 }
 
 function render() {
   const workoutSession = getActiveWorkoutSession(code);
   const currentWorkoutSession = workoutSession?.workoutId === member.workout.id ? workoutSession : null;
-  const workoutStatus = currentWorkoutSession?.status === "completed"
+  // ต้องเช็คจาก alreadyCompletedToday (เทียบวันปฏิทินจาก Firebase) ไม่ใช่จาก session ในเครื่อง
+  // ไม่งั้นสถานะ "completed" จะค้างข้ามวัน ทำให้การ์ดชวนออกกำลังกายหายไปถาวร
+  const workoutStatus = member.workout.alreadyCompletedToday
     ? "completed"
     : currentWorkoutSession?.status === "in_progress"
       ? "in_progress"
@@ -90,6 +116,25 @@ function render() {
           ${priorityMarkup(priority, currentWorkoutSession)}
         </section>
 
+        ${unreadReview ? `
+          <button id="home-review-banner" class="home-review-banner">
+            <span class="home-review-dot"></span>
+            <span>
+              <strong>โค้ชรีวิวรายงานของคุณแล้ว</strong>
+              <small>แตะเพื่อดูคำติชมและเป้าหมายสัปดาห์นี้</small>
+            </span>
+            <span aria-hidden="true">→</span>
+          </button>
+        ` : ""}
+
+        ${streakDays >= 2 ? `
+          <div class="home-streak-badge">
+            <span aria-hidden="true">🔥</span>
+            <strong>${streakDays} วันติดต่อกัน</strong>
+            <small>รักษาไว้ให้ได้นะ</small>
+          </div>
+        ` : ""}
+
         <section class="clob-home-section" aria-labelledby="home-today-title">
           <div class="clob-home-section-head">
             <div>
@@ -100,8 +145,8 @@ function render() {
           </div>
 
           <div class="clob-home-card-stack">
-            ${priority.type === "nutrition" ? "" : nutritionCardMarkup()}
-            ${priority.type === "workout" ? "" : workoutCardMarkup(workoutStatus)}
+            ${nutritionCardMarkup()}
+            ${workoutCardMarkup(workoutStatus)}
             ${progressCardMarkup(weight, weightChange)}
           </div>
         </section>
@@ -268,9 +313,9 @@ function workoutCardMarkup(status) {
     <button class="clob-home-data-card" data-home-route="workout">
       <span class="clob-data-icon">W</span>
       <span class="clob-data-copy">
-        <small>WORKOUT</small>
+        <small>WORKOUT${Number(member.workout.queueLength) > 1 ? ` · DAY ${member.workout.dayNumber}/${member.workout.queueLength}` : ""}</small>
         <strong>${escapeHtml(member.workout.title)}</strong>
-        <span>${status === "completed" ? "Completed" : status === "in_progress" ? "In progress" : "Not started"}</span>
+        <span>${status === "completed" ? "วันนี้ทำสำเร็จแล้ว" : status === "in_progress" ? "กำลังทำอยู่" : "ยังไม่เริ่ม"}</span>
       </span>
       <span class="clob-data-state ${status === "completed" ? "is-done" : ""}">
         ${status === "completed" ? "✓" : "→"}
@@ -350,6 +395,8 @@ function bind() {
     }
     openWorkout();
   });
+
+  document.querySelector("#home-review-banner")?.addEventListener("click", () => navigate("/member-weekly"));
 
   document.querySelectorAll("[data-home-route]").forEach((button) => {
     button.addEventListener("click", () => {

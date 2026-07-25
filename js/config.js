@@ -1,7 +1,7 @@
 export const APP_CONFIG = {
   appName: "Morning Warrior",
   parentBrand: "CLOB",
-  version: "Morning Warrior v2 · Nutrition AI Beta · Hotfix 5",
+  version: "Morning Warrior v3 · Batch 2",
   coachId: "0409",
   coachPinLength: 6,
   memberCodeLength: 5,
@@ -9,7 +9,7 @@ export const APP_CONFIG = {
   aiFoodEstimationEnabled: true,
   aiFoodModel: "gemini-3.1-flash-lite",
   aiFoodFallbackModels: ["gemini-3.5-flash"],
-  aiFoodDailyLimitPerMember: 3,
+  aiFoodDailyLimitPerMember: 5,
   aiFoodDailyLimitProject: 60,
   aiRequireAppCheck: true,
   appCheckSiteKey: "6LdTyWEtAAAAAK0SiSUdSOyIuJ0h7n-36KPVlyp4"

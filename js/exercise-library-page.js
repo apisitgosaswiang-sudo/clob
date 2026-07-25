@@ -45,6 +45,15 @@ export async function renderExerciseLibraryPage() {
     return;
   }
 
+  app.innerHTML = `
+    <main class="page trainer-page">
+      <div class="member-loading">
+        <div class="loading-spinner"></div>
+        <p>กำลังโหลดข้อมูล...</p>
+      </div>
+    </main>
+  `;
+
   [exercises, prefs] = await Promise.all([
     loadExerciseLibrary(),
     loadExercisePrefs()

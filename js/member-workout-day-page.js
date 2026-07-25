@@ -29,7 +29,7 @@ export async function renderMemberWorkoutDayPage(code, dayKey) {
 
   app.innerHTML = `<main class="page trainer-page"><div class="member-detail-screen">
     <header class="member-detail-header">
-      <button id="day-back" class="back-button">←</button>
+      <button id="day-back" class="back-button" aria-label="ย้อนกลับ">←</button>
       <h1>${escapeHtml(dateLabel)}</h1><span></span>
     </header>
     <section class="member-profile-card">
@@ -67,20 +67,36 @@ function sessionDetailCard(session) {
 
 function exerciseRow(exercise) {
   const sets = exercise.sets || [];
-  const doneCount = sets.filter((set) => set.completed).length;
+  const doneSets = sets.filter((set) => set.completed);
+  const skippedCount = sets.filter((set) => set.skipped).length;
+
+  // Volume = ผลรวม (น้ำหนัก × ครั้ง) ของเซตที่ทำจริง — ตัวชี้วัดหลักว่าแข็งแรงขึ้นไหม
+  const volume = doneSets.reduce((sum, set) => sum + (Number(set.weight) || 0) * (Number(set.reps) || 0), 0);
+  const rpeValues = doneSets.map((set) => Number(set.rpe)).filter((value) => Number.isFinite(value) && value > 0);
+  const avgRpe = rpeValues.length ? (rpeValues.reduce((a, b) => a + b, 0) / rpeValues.length).toFixed(1) : null;
+
   return `
     <div class="workout-day-exercise">
       <div class="workout-day-exercise-head">
         <strong>${escapeHtml(exercise.name)}</strong>
-        <span>${doneCount}/${sets.length} เซต</span>
+        <span>${doneSets.length}/${sets.length} เซต</span>
       </div>
+      ${exercise.skipped ? `<p class="workout-day-skip-note">ข้ามท่านี้ · ${escapeHtml(exercise.skipReason || "อื่นๆ")}</p>` : ""}
       <div class="workout-day-sets">
-        ${sets.map((set, index) => `
-          <span class="workout-day-set-chip ${set.completed ? "is-done" : ""}">
-            เซต ${index + 1}${set.completed ? ` · ${set.weight || 0}kg × ${set.reps || exercise.targetReps || "-"}` : " · ยังไม่ทำ"}
-          </span>
-        `).join("")}
+        ${sets.map((set, index) => {
+          if (set.skipped) return `<span class="workout-day-set-chip is-skipped">เซต ${index + 1} · ข้าม</span>`;
+          if (!set.completed) return `<span class="workout-day-set-chip">เซต ${index + 1} · ยังไม่ทำ</span>`;
+          const rpeLabel = Number(set.rpe) > 0 ? ` · RPE ${set.rpe}` : "";
+          return `<span class="workout-day-set-chip is-done">เซต ${index + 1} · ${set.weight || 0}kg × ${set.reps || "-"}${rpeLabel}</span>`;
+        }).join("")}
       </div>
+      ${doneSets.length ? `
+        <div class="workout-day-metrics">
+          <span>Volume <strong>${Math.round(volume).toLocaleString()} kg</strong></span>
+          ${avgRpe ? `<span>RPE เฉลี่ย <strong>${avgRpe}</strong></span>` : ""}
+          ${skippedCount ? `<span>ข้าม <strong>${skippedCount} เซต</strong></span>` : ""}
+        </div>
+      ` : ""}
     </div>
   `;
 }

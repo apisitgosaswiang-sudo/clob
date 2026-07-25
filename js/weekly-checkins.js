@@ -124,8 +124,12 @@ function sortNewest(a, b) {
 }
 
 function getMondayISO() {
+  // ใช้เวลาท้องถิ่น (ไทย) ไม่ใช่ UTC — กันข้อมูลตอนเช้ามืดหลุดไปสัปดาห์ก่อน
   const date = new Date();
   const day = date.getDay() || 7;
   date.setDate(date.getDate() - day + 1);
-  return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }

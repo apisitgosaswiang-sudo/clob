@@ -13,12 +13,16 @@ import {
   renderAvatar
 } from "./utils.js";
 import { loadWeeklyCheckins } from "./weekly-checkins.js";
+import { loadCheckins } from "./checkins.js";
+import { detectMemberAlerts } from "./anomaly-alerts.js";
+import { getWorkoutSessions } from "./firebase.js";
 
 const app = document.querySelector("#app");
 let members = [];
 let notifications = [];
 let profile = null;
 let checkins = [];
+let memberAlerts = [];
 
 export async function renderTrainerDashboardPage() {
   if (sessionStorage.getItem("clob_trainer") !== "true") {
@@ -43,6 +47,23 @@ export async function renderTrainerDashboardPage() {
     route: `/weekly-checkins-${item.memberCode}`
   }));
   notifications = [...submitted, ...stored.filter((item) => !submitted.some((entry) => entry.id === item.id))];
+
+  // ตรวจสัญญาณผิดปกติด้วยการคำนวณธรรมดา (ไม่เรียก AI จึงไม่มีค่าใช้จ่าย)
+  const activeMembers = members.filter((member) => member.status !== "inactive");
+  const [bodyCheckinsPerMember, allSessions] = await Promise.all([
+    Promise.all(activeMembers.map((member) => loadCheckins(member.code))),
+    getWorkoutSessions()
+  ]);
+  memberAlerts = activeMembers.flatMap((member, index) => {
+    const memberWeekly = checkins.filter((item) => item.memberCode === member.code);
+    const memberSessions = Object.values((allSessions || {})[member.code] || {});
+    return detectMemberAlerts({
+      checkins: bodyCheckinsPerMember[index],
+      weeklyCheckins: memberWeekly,
+      sessions: memberSessions
+    }).map((alert) => ({ ...alert, code: member.code, name: member.name }));
+  });
+
   render();
 }
 
@@ -84,6 +105,7 @@ function render() {
         </section>
 
         <section class="attention-list">
+          ${alertsMarkup()}
           ${attentionMarkup()}
         </section>
 
@@ -134,23 +156,61 @@ function summaryCard(label, value, sublabel, id = "") {
   `;
 }
 
+// การ์ดเตือนสัญญาณผิดปกติ (คำนวณล้วน ไม่ใช้ AI) — ระบบเสนอ เทรนเนอร์ตัดสินใจ
+function alertsMarkup() {
+  if (!memberAlerts.length) return "";
+  const sorted = [...memberAlerts].sort((a, b) => (a.tone === "danger" ? -1 : 0) - (b.tone === "danger" ? -1 : 0));
+  return sorted.slice(0, 3).map((alert) => `
+    <button class="attention-card card is-alert ${alert.tone === "danger" ? "is-danger" : ""}" data-member-code="${escapeHtml(alert.code)}">
+      ${renderAvatar({ name: alert.name, className: "attention-avatar" })}
+      <span class="attention-copy">
+        <strong>${escapeHtml(alert.name)}</strong>
+        <small>${escapeHtml(alert.message)}</small>
+      </span>
+      <span class="attention-status ${alert.tone === "danger" ? "danger" : "warning"}"></span>
+    </button>
+  `).join("");
+}
+
+const INACTIVE_DAYS_THRESHOLD = 6;
+
 function attentionMarkup() {
+  const now = Date.now();
+
+  // ต้องดูจาก "นานแค่ไหนแล้วที่ไม่มีความเคลื่อนไหว" ไม่ใช่สถานะดิบของ session ล่าสุด
+  // ไม่งั้นคนที่หายไปหลายเดือน (แต่ session สุดท้าย completed) จะไม่ถูกแจ้งเตือนเลย
+  // และคนที่กำลังออกกำลังกายอยู่ตอนนี้ (in_progress) จะถูกแจ้งเตือนผิดๆ
+  const daysSince = (member) => {
+    const updated = Number(member.workoutUpdatedAt || 0);
+    if (!updated) return null;
+    return Math.floor((now - updated) / 86400000);
+  };
+
   const cards = members
     .filter((member) => member.status !== "inactive")
-    .filter((member) => member.packageDaysLeft <= 7 || member.workoutStatus !== "completed")
-    .slice(0, 3)
     .map((member) => {
+      const idle = daysSince(member);
+
       if (member.packageDaysLeft <= 0) {
-        return { code: member.code, name: member.name, message: "Monthly package expired", tone: "danger" };
+        return { code: member.code, name: member.name, message: "แพ็กเกจหมดอายุแล้ว", tone: "danger", rank: 0 };
       }
       if (member.packageDaysLeft <= 7) {
-        return { code: member.code, name: member.name, message: `Package expires in ${member.packageDaysLeft} days`, tone: "warning" };
+        return { code: member.code, name: member.name, message: `แพ็กเกจเหลือ ${member.packageDaysLeft} วัน`, tone: "warning", rank: 1 };
       }
-      return { code: member.code, name: member.name, message: "Workout needs attention", tone: "neutral" };
-    });
+      if (idle === null) {
+        return { code: member.code, name: member.name, message: "ยังไม่เคยเริ่มโปรแกรม", tone: "warning", rank: 2 };
+      }
+      if (idle > INACTIVE_DAYS_THRESHOLD) {
+        return { code: member.code, name: member.name, message: `ไม่มีการฝึกมา ${idle} วัน`, tone: "warning", rank: 3 };
+      }
+      return null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.rank - b.rank)
+    .slice(0, 3);
 
   if (!cards.length) {
-    return `<article class="empty-notification card"><strong>No members need attention</strong><p>All active members are on track.</p></article>`;
+    return `<article class="empty-notification card"><strong>ทุกคนอยู่ในเกณฑ์ดี</strong><p>ไม่มีลูกเทรนที่ต้องดูแลเป็นพิเศษตอนนี้</p></article>`;
   }
 
   return cards.map((item) => `

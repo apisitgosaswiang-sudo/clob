@@ -7,6 +7,7 @@ import {
   removeQueueItem,
   moveQueueItem,
   unassignProgram,
+  restoreQueue,
   addExtraToQueueItem,
   removeExtraFromQueueItem,
   getExerciseLibrary
@@ -38,7 +39,7 @@ function render(member, programs, assignment, exerciseLibrary) {
 
   app.innerHTML = `<main class="page trainer-page"><div class="member-detail-screen">
     <header class="member-detail-header">
-      <button id="schedule-back" class="back-button">←</button>
+      <button id="schedule-back" class="back-button" aria-label="ย้อนกลับ">←</button>
       <h1>จัดตารางเทรน</h1><span></span>
     </header>
 
@@ -113,6 +114,20 @@ function bindActions(member, programs, exerciseLibrary) {
     setTimeout(() => { el.hidden = true; }, 2400);
   };
 
+  // Toast แบบมีปุ่มเลิกทำ ค้าง 6 วินาที (กันเผลอกดลบ)
+  const toastWithUndo = (message, onUndo) => {
+    const el = document.querySelector("#schedule-toast");
+    el.innerHTML = `<span>${message}</span><button type="button" class="toast-undo">เลิกทำ</button>`;
+    el.hidden = false;
+    const timer = setTimeout(() => { el.hidden = true; el.textContent = ""; }, 6000);
+    el.querySelector(".toast-undo").addEventListener("click", async () => {
+      clearTimeout(timer);
+      el.hidden = true;
+      el.textContent = "";
+      await onUndo();
+    });
+  };
+
   const refresh = async () => {
     const assignment = await loadMemberProgram(member.code);
     render(member, programs, assignment, exerciseLibrary);
@@ -121,14 +136,21 @@ function bindActions(member, programs, exerciseLibrary) {
   document.querySelector("#assign-member-program")?.addEventListener("click", async () => {
     const program = programs.find((item) => item.id === document.querySelector("#member-program-select").value);
     if (!program) { toast("กรุณาเลือก Program"); return; }
-    try { await addProgramToQueue(program, member.code, new Date().toISOString().slice(0, 10)); toast("เพิ่มเข้าคิวเรียบร้อย"); await refresh(); }
+    try { await addProgramToQueue(program, member.code, undefined); toast("เพิ่มเข้าคิวเรียบร้อย"); await refresh(); }
     catch (error) { toast(error.message || "เพิ่มเข้าคิวไม่สำเร็จ"); }
   });
 
   document.querySelector("#remove-member-program")?.addEventListener("click", async () => {
     if (!window.confirm(`ล้างคิวโปรแกรมทั้งหมดของ ${member.name} หรือไม่?`)) return;
-    try { await unassignProgram(member.code); toast("ล้างคิวโปรแกรมแล้ว"); await refresh(); }
-    catch (error) { toast(error.message || "ล้างคิวไม่สำเร็จ"); }
+    const snapshot = await loadMemberProgram(member.code);
+    try {
+      await unassignProgram(member.code);
+      await refresh();
+      toastWithUndo("ล้างคิวโปรแกรมแล้ว", async () => {
+        try { await restoreQueue(member.code, snapshot); await refresh(); toast("กู้คืนคิวแล้ว"); }
+        catch (error) { toast(error.message || "กู้คืนไม่สำเร็จ"); }
+      });
+    } catch (error) { toast(error.message || "ล้างคิวไม่สำเร็จ"); }
   });
 
   document.querySelectorAll("[data-queue-up]").forEach((button) => {
@@ -148,10 +170,14 @@ function bindActions(member, programs, exerciseLibrary) {
   document.querySelectorAll("[data-queue-remove]").forEach((button) => {
     button.addEventListener("click", async () => {
       const index = Number(button.dataset.queueRemove);
+      const snapshot = await loadMemberProgram(member.code);
       try {
         await removeQueueItem(member.code, index);
-        toast("ลบออกจากคิวแล้ว");
         await refresh();
+        toastWithUndo(`ลบ Day ${index + 1} แล้ว`, async () => {
+          try { await restoreQueue(member.code, snapshot); await refresh(); toast("กู้คืนแล้ว"); }
+          catch (error) { toast(error.message || "กู้คืนไม่สำเร็จ"); }
+        });
       } catch (error) {
         toast(error.message || "ลบออกจากคิวไม่สำเร็จ");
       }

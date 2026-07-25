@@ -8,7 +8,7 @@ import {
 } from "./members.js";
 import { trainerResetMemberPin } from "./member-security.js";
 import { loadWeeklyCheckins } from "./weekly-checkins.js";
-import { loadCheckins, latestValue, calculateChange } from "./checkins.js";
+import { loadCheckins, latestValue, calculateChange, calculateRecentChange } from "./checkins.js";
 import { dateKey, loadNutritionDay } from "./nutrition.js";
 
 const app = document.querySelector("#app");
@@ -250,6 +250,7 @@ export async function renderMemberDetail(code) {
   const latestWeekly = weekly[0] || null;
   const currentWeight = latestValue(bodyCheckins, "weight");
   const weightChange = calculateChange(bodyCheckins, "weight");
+  const weightRecent = calculateRecentChange(bodyCheckins, "weight", 30);
   const bodyFat = latestValue(bodyCheckins, "bodyFat");
   const muscle = latestValue(bodyCheckins, "skeletalMuscle");
   const waist = latestValue(bodyCheckins, "waist");
@@ -294,12 +295,12 @@ export async function renderMemberDetail(code) {
         <span class="package-chip ${latestWeekly?.reviewStatus === "submitted" ? "package-expiring" : "package-active"}">${latestWeekly?.reviewStatus === "submitted" ? "รอรีวิว" : "อัปเดตแล้ว"}</span></div>
         <div class="detail-grid">
           <div><span>น้ำหนักล่าสุด</span><strong>${currentWeight === null ? "ยังไม่มีข้อมูล" : `${currentWeight} kg`}</strong></div>
-          <div><span>แนวโน้มน้ำหนัก</span><strong>${weightChange === null ? "ยังไม่มีข้อมูล" : `${weightChange > 0 ? "+" : ""}${weightChange} kg`}</strong></div>
+          <div><span>แนวโน้มน้ำหนัก</span><strong>${weightChange === null ? "ยังไม่มีข้อมูล" : `${weightChange > 0 ? "+" : ""}${weightChange} kg`}${weightRecent === null ? "" : `<small style="display:block;font-weight:600;color:var(--muted);">30วัน: ${weightRecent > 0 ? "+" : ""}${weightRecent} kg</small>`}</strong></div>
           <div><span>โภชนาการตามแผน</span><strong>${latestWeekly ? `${Number(latestWeekly.nutritionAdherence || 0)}%` : "ยังไม่มีข้อมูล"}</strong></div>
           <div><span>แคลอรีวันนี้</span><strong>${nutritionDay?.target ? `${Math.round(Number(nutritionDay.summary.calories || 0))}/${Math.round(Number(nutritionDay.target.calories || 0))} kcal` : "ยังไม่มีข้อมูล"}</strong></div>
           <div><span>Body Fat</span><strong>${bodyFat === null ? "ยังไม่มีข้อมูล" : `${bodyFat}%`}</strong></div>
           <div><span>กล้ามเนื้อ</span><strong>${muscle === null ? "ยังไม่มีข้อมูล" : `${muscle} kg`}</strong></div>
-          <div><span>รอบเอว</span><strong>${waist === null ? "ยังไม่มีข้อมูล" : `${waist} cm`}</strong></div>
+          <div><span>รอบเอว</span><strong>${waist === null ? "ยังไม่มีข้อมูล" : `${waist} นิ้ว`}</strong></div>
         </div>
         ${latestWeekly ? `<p class="member-goal">นอน ${Number(latestWeekly.sleep || 0)}/10 · ความเครียด ${Number(latestWeekly.stress || 0)}/10 · พลังงาน ${Number(latestWeekly.energy || 0)}/10</p>` : `<p class="member-goal">ยังไม่มี Weekly Check-in</p>`}
       </section>

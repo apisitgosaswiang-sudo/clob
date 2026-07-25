@@ -51,6 +51,15 @@ export async function renderProgramsPage() {
     return;
   }
 
+  app.innerHTML = `
+    <main class="page trainer-page">
+      <div class="member-loading">
+        <div class="loading-spinner"></div>
+        <p>กำลังโหลดโปรแกรม...</p>
+      </div>
+    </main>
+  `;
+
   try {
     programsCache = (await loadPrograms()).map((program) => normalizeProgram(program));
   } catch (error) {
@@ -481,26 +490,41 @@ async function openExerciseModal() {
           <p class="section-label">EXERCISE LIBRARY</p>
           <h2>Add Exercise</h2>
         </div>
-        <button id="close-exercise-modal">×</button>
+        <button id="close-exercise-modal" aria-label="ปิดหน้าต่างเลือกท่า">×</button>
       </div>
       <input id="exercise-search" class="modal-search" type="search" placeholder="ค้นหาท่า..." />
+      <p class="modal-hint" id="exercise-added-count">เลือกได้หลายท่าต่อเนื่อง เสร็จแล้วกดปุ่มด้านล่าง</p>
       <div id="exercise-library-list" class="exercise-library-list">
         ${exerciseLibraryMarkup(library)}
       </div>
+      <button id="finish-exercise-modal" class="button button-primary is-wide">เสร็จสิ้น</button>
     </div>
   `;
 
+  let addedCount = 0;
+
+  // เลือกได้หลายท่าต่อเนื่องโดย modal ไม่ปิด — ปิดเองเมื่อกด "เสร็จสิ้น"
   const bindLibrary = () => {
     document.querySelectorAll("[data-add-library-exercise]").forEach((button) => {
       button.addEventListener("click", () => {
         addExercise(currentProgram, activeDayId, button.dataset.addLibraryExercise);
-        modal.hidden = true;
-        renderBuilder();
+        addedCount += 1;
+        button.textContent = "เพิ่มแล้ว ✓";
+        button.classList.add("is-added");
+        button.disabled = true;
+        const counter = document.querySelector("#exercise-added-count");
+        if (counter) counter.textContent = `เพิ่มไปแล้ว ${addedCount} ท่า · เลือกต่อได้เลย`;
       });
     });
   };
 
   bindLibrary();
+
+  const closeModal = () => {
+    modal.hidden = true;
+    renderBuilder();
+  };
+  document.querySelector("#finish-exercise-modal").addEventListener("click", closeModal);
 
   document.querySelector("#exercise-search").addEventListener("input", (event) => {
     const query = event.target.value.toLowerCase();
@@ -512,9 +536,7 @@ async function openExerciseModal() {
     bindLibrary();
   });
 
-  document.querySelector("#close-exercise-modal").addEventListener("click", () => {
-    modal.hidden = true;
-  });
+  document.querySelector("#close-exercise-modal").addEventListener("click", closeModal);
 }
 
 function exerciseLibraryMarkup(items) {

@@ -9,6 +9,8 @@ import {
   saveReview,
   calculateWeeklyScore
 } from "./weekly-checkins.js";
+import { dateKey, setNutritionTarget } from "./nutrition.js";
+import { draftCoachFeedback, getCachedDraft } from "./ai-coach-draft.js";
 import { escapeHtml, renderAvatar } from "./utils.js";
 
 const app = document.querySelector("#app");
@@ -22,6 +24,15 @@ export async function renderWeeklyCheckinPage(code) {
     navigate("/trainer-login");
     return;
   }
+
+  app.innerHTML = `
+    <main class="page trainer-page">
+      <div class="member-loading">
+        <div class="loading-spinner"></div>
+        <p>กำลังโหลดข้อมูล...</p>
+      </div>
+    </main>
+  `;
 
   const members = await loadMembers();
   member = getMemberByCode(members, code);
@@ -49,7 +60,7 @@ function render() {
     <main class="page trainer-page">
       <div class="weekly-checkin-screen">
         <header class="weekly-header">
-          <button id="weekly-back" class="back-button">←</button>
+          <button id="weekly-back" class="back-button" aria-label="ย้อนกลับ">←</button>
           <div>
             <p class="section-label">ONLINE COACHING</p>
             <h1>Weekly Check-ins</h1>
@@ -329,6 +340,11 @@ function openReviewEditor(checkin) {
       ` : ""}
 
       <form id="review-form">
+        <button type="button" id="ai-draft-button" class="ai-draft-button">
+          ✨ ให้ AI ช่วยร่างคำติชม
+        </button>
+        <p class="ai-draft-note">AI จะร่างจากข้อมูลจริงของสัปดาห์นี้ · คุณต้องตรวจและแก้ก่อนส่งเสมอ</p>
+
         ${textareaInput("feedback", "Coach Feedback", existing.feedback)}
         ${textareaInput("nextWeekGoal", "Goal for Next Week", existing.nextWeekGoal)}
 
@@ -353,6 +369,37 @@ function openReviewEditor(checkin) {
     modal.hidden = true;
   });
 
+  document.querySelector("#ai-draft-button")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const form = document.querySelector("#review-form");
+    const feedbackField = form.querySelector('[name="feedback"]');
+    const goalField = form.querySelector('[name="nextWeekGoal"]');
+
+    const alreadyFilled = feedbackField.value.trim() || goalField.value.trim();
+    if (alreadyFilled && !window.confirm("มีข้อความอยู่แล้ว ต้องการให้ AI เขียนทับหรือไม่?")) return;
+
+    const cached = getCachedDraft(member.code, checkin.id);
+    button.disabled = true;
+    button.textContent = cached ? "กำลังดึงร่างที่เคยสร้างไว้..." : "AI กำลังร่าง...";
+
+    try {
+      const draft = await draftCoachFeedback({
+        memberCode: member.code,
+        checkin,
+        memberName: member.name,
+        stats: {}
+      });
+      feedbackField.value = draft.feedback;
+      if (draft.nextWeekGoal) goalField.value = draft.nextWeekGoal;
+      toast(draft.fromCache ? "ใช้ร่างที่เคยสร้างไว้ (ไม่เสียเครดิตเพิ่ม)" : "AI ร่างให้แล้ว กรุณาตรวจและแก้ก่อนส่ง");
+    } catch (error) {
+      toast(error?.message || "AI ร่างไม่สำเร็จ กรุณาเขียนเองหรือลองอีกครั้ง");
+    } finally {
+      button.disabled = false;
+      button.textContent = "✨ ให้ AI ช่วยร่างคำติชม";
+    }
+  });
+
   document.querySelector("#review-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -369,11 +416,29 @@ function openReviewEditor(checkin) {
       reviewedAt: Date.now()
     });
 
+    // ตัวเลขโภชนาการที่โค้ชกรอกในรีวิว ต้องถูกนำไปตั้งเป็นเป้าหมายจริงของลูกเทรนด้วย
+    // (โค้ชพิมพ์เองจึงถือเป็นการยืนยันแล้ว ไม่ต้องถามซ้ำ)
+    let targetNote = "";
+    if (Number(review.calories) > 0) {
+      try {
+        await setNutritionTarget(member.code, {
+          calories: Number(review.calories),
+          protein: Number(review.protein || 0),
+          carbs: Number(review.carbs || 0),
+          fat: Number(review.fat || 0),
+          effectiveFrom: dateKey()
+        });
+        targetNote = " · อัปเดตเป้าโภชนาการแล้ว";
+      } catch (error) {
+        targetNote = ` · ตั้งเป้าโภชนาการไม่สำเร็จ: ${error?.message || "ลองอีกครั้ง"}`;
+      }
+    }
+
     reviews[checkin.id] = review;
     checkin.reviewStatus = "reviewed";
     modal.hidden = true;
     render();
-    toast("Reviewed");
+    toast(`ส่งรีวิวให้ลูกเทรนแล้ว${targetNote}`);
   });
 }
 

@@ -148,6 +148,13 @@ function readLocalAssignment(memberCode) {
   }
 }
 
+function localDateKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function uid() {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -202,10 +209,15 @@ export async function loadMemberProgram(memberCode) {
   return normalized;
 }
 
+// กู้คืนคิวกลับเป็นสถานะก่อนหน้า (ใช้กับปุ่ม "เลิกทำ")
+export async function restoreQueue(memberCode, snapshot) {
+  return persistQueue(memberCode, snapshot.queue || [], snapshot.effectiveDate);
+}
+
 async function persistQueue(memberCode, queue, effectiveDate) {
   const payload = {
     queue,
-    effectiveDate: effectiveDate || new Date().toISOString().slice(0, 10),
+    effectiveDate: effectiveDate || localDateKey(),
     assignedAt: Date.now(),
     status: queue.length ? "active" : "unassigned"
   };

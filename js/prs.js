@@ -46,6 +46,44 @@ export async function removePR(memberCode, prId) {
   await deleteMemberPR(memberCode, prId);
 }
 
+// ตรวจว่าเซตที่เพิ่งบันทึกทำสถิติใหม่ไหม (เทียบน้ำหนักสูงสุดที่เคยยกในท่านั้น)
+// ระบบแค่ "แจ้งให้รู้" ไม่ได้ไปแก้โปรแกรมหรือข้อมูลอะไรเอง
+export function findNewPR(prs, exerciseName, weight, reps) {
+  const value = Number(weight);
+  const repCount = Number(reps);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  if (!Number.isFinite(repCount) || repCount <= 0) return null;
+
+  const key = String(exerciseName || "").trim().toLowerCase();
+  if (!key) return null;
+
+  const previous = prs
+    .filter((pr) => String(pr.exercise || "").trim().toLowerCase() === key)
+    .reduce((best, pr) => Math.max(best, Number(pr.weight || 0)), 0);
+
+  if (value <= previous) return null;
+  return { exercise: exerciseName, weight: value, reps: repCount, previous };
+}
+
+// บันทึก PR ใหม่อัตโนมัติจากเซตที่ทำจริง
+export async function recordAutoPR(memberCode, prs, exerciseName, weight, reps) {
+  const found = findNewPR(prs, exerciseName, weight, reps);
+  if (!found) return null;
+  const saved = await savePR(memberCode, {
+    exercise: found.exercise,
+    weight: found.weight,
+    reps: found.reps,
+    date: localDate(),
+    source: "auto"
+  });
+  return { ...found, saved };
+}
+
+function localDate() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function latestPRsByExercise(prs) {
   const best = {};
   for (const pr of prs) {

@@ -155,7 +155,7 @@ export async function loadMember(code) {
   const source = remote || DEMO_MEMBERS[code] || DEFAULT_MEMBER;
   const active = resolveActiveProgram(assignment, programs, remoteSessions);
   if (active) {
-    source.workout = programToWorkout(active.program, active.queueItem, assignment, remoteSessions, exerciseLibrary);
+    source.workout = programToWorkout(active, assignment, remoteSessions, exerciseLibrary);
   }
   return normalizeMember(code, source);
 }
@@ -170,7 +170,7 @@ function resolveActiveProgram(assignment, programs, remoteSessions) {
   const queue = Array.isArray(assignment?.queue) ? assignment.queue : [];
   const validQueue = queue.filter((item) => item?.programId && item?.id && programs?.[item.programId]);
   if (!validQueue.length) return null;
-  if (validQueue.length === 1) return { program: programs[validQueue[0].programId], queueItem: validQueue[0] };
+  if (validQueue.length === 1) return { program: programs[validQueue[0].programId], queueItem: validQueue[0], dayNumber: 1, queueLength: 1 };
 
   const completed = Object.values(remoteSessions || {})
     .filter((item) => item
@@ -180,14 +180,19 @@ function resolveActiveProgram(assignment, programs, remoteSessions) {
     .sort((a, b) => Number(b.completedAt || b.updatedAt || 0) - Number(a.completedAt || a.updatedAt || 0));
 
   const lastCompleted = completed[0];
-  if (!lastCompleted) return { program: programs[validQueue[0].programId], queueItem: validQueue[0] };
+  if (!lastCompleted) return { program: programs[validQueue[0].programId], queueItem: validQueue[0], dayNumber: 1, queueLength: validQueue.length };
 
   const lastQueueItemId = lastCompleted.workoutId.split(":")[0];
   const lastIndex = validQueue.findIndex((entry) => entry.id === lastQueueItemId);
-  if (lastIndex === -1) return { program: programs[validQueue[0].programId], queueItem: validQueue[0] };
+  if (lastIndex === -1) return { program: programs[validQueue[0].programId], queueItem: validQueue[0], dayNumber: 1, queueLength: validQueue.length };
 
   const nextIndex = (lastIndex + 1) % validQueue.length;
-  return { program: programs[validQueue[nextIndex].programId], queueItem: validQueue[nextIndex] };
+  return {
+    program: programs[validQueue[nextIndex].programId],
+    queueItem: validQueue[nextIndex],
+    dayNumber: nextIndex + 1,
+    queueLength: validQueue.length
+  };
 }
 
 // เลือกวันถัดไปภายในโปรแกรมเดียว (เผื่อโปรแกรมไหนมีมากกว่า 1 วัน)
@@ -219,7 +224,8 @@ function isSameCalendarDay(a, b) {
   return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
 }
 
-function programToWorkout(program, queueItem, assignment, remoteSessions, exerciseLibrary) {
+function programToWorkout(active, assignment, remoteSessions, exerciseLibrary) {
+  const { program, queueItem } = active;
   const days = Array.isArray(program.days) ? program.days : [];
   const day = pickNextDay(queueItem, days, remoteSessions) || days[0] || { id: program.id, name: program.name, exercises: [] };
   const libraryMap = Object.fromEntries((exerciseLibrary || []).map((item) => [item.id, item]));
@@ -231,6 +237,19 @@ function programToWorkout(program, queueItem, assignment, remoteSessions, exerci
     && isSameCalendarDay(item.completedAt, Date.now())
   );
 
+  // หาน้ำหนักที่ลูกเทรนยกได้จริงครั้งล่าสุดของแต่ละท่า เพื่อใช้เป็นค่าเริ่มต้น
+  // (สำคัญต่อ progressive overload — ไม่ควรย้อนไปใช้เลขในโปรแกรมที่ตั้งไว้นานแล้ว)
+  const lastWeights = {};
+  Object.values(remoteSessions || {})
+    .filter((item) => item && item.status === "completed")
+    .sort((a, b) => Number(a.completedAt || 0) - Number(b.completedAt || 0))
+    .forEach((session) => {
+      (session.exercises || []).forEach((exercise) => {
+        const done = (exercise.sets || []).filter((set) => set.completed && Number(set.weight) > 0);
+        if (done.length) lastWeights[exercise.id] = Number(done[done.length - 1].weight);
+      });
+    });
+
   const baseExercises = (day.exercises || []).map((exercise) => ({
     id: exercise.uid || exercise.exerciseId,
     name: exercise.name,
@@ -238,7 +257,8 @@ function programToWorkout(program, queueItem, assignment, remoteSessions, exerci
     targetSets: Number(exercise.sets || 3),
     targetReps: String(exercise.reps || "10"),
     restSeconds: Number(exercise.rest || 90),
-    defaultWeight: Number(exercise.weight || 0),
+    defaultWeight: lastWeights[exercise.uid || exercise.exerciseId] ?? Number(exercise.weight || 0),
+    lastWeight: lastWeights[exercise.uid || exercise.exerciseId] ?? null,
     note: exercise.notes || "",
     imageUrl: libraryMap[exercise.exerciseId]?.imageUrl || "",
     isExtra: false
@@ -252,7 +272,8 @@ function programToWorkout(program, queueItem, assignment, remoteSessions, exerci
     targetSets: Number(extra.sets || 3),
     targetReps: String(extra.reps || "10"),
     restSeconds: Math.round(Number(extra.restMinutes || 1.5) * 60),
-    defaultWeight: Number(extra.weight || 0),
+    defaultWeight: lastWeights[extra.id] ?? Number(extra.weight || 0),
+    lastWeight: lastWeights[extra.id] ?? null,
     note: extra.notes || "",
     imageUrl: libraryMap[extra.exerciseId]?.imageUrl || "",
     isExtra: true
@@ -263,6 +284,8 @@ function programToWorkout(program, queueItem, assignment, remoteSessions, exerci
     title: program.name,
     programName: program.name,
     dayLabel: days.length > 1 ? (day.name || "") : "",
+    dayNumber: active.dayNumber || 1,
+    queueLength: active.queueLength || 1,
     alreadyCompletedToday,
     duration: Math.max(20, (baseExercises.length + extraExercises.length) * 8),
     status: "ready",
@@ -336,14 +359,13 @@ export function createWorkoutSession(code, member) {
     }))
   };
 
-  saveSessionLocal(code, session);
   saveMemberActivity(code, {
     type: "workout_started",
     workoutTitle: session.title,
     sessionId: session.id,
     timestamp: now
   });
-  saveWorkoutSession(code, session.id, session);
+  persistSession(code, session);
 
   return session;
 }
@@ -373,8 +395,7 @@ export function syncSessionWithProgram(code, member, session) {
 
   session.exercises = [...session.exercises, ...appended];
   session.updatedAt = Date.now();
-  saveSessionLocal(code, session);
-  saveWorkoutSession(code, session.id, session);
+  persistSession(code, session);
 
   return session;
 }
@@ -415,8 +436,7 @@ export function updateWorkoutSet(code, session, exerciseIndex, setIndex, values)
   }
 
   session.updatedAt = Date.now();
-  saveSessionLocal(code, session);
-  saveWorkoutSession(code, session.id, session);
+  persistSession(code, session);
 
   return session;
 }
@@ -434,8 +454,7 @@ export function completeWorkout(code, session) {
   session.completedAt = now;
   session.updatedAt = now;
 
-  saveSessionLocal(code, session);
-  saveWorkoutSession(code, session.id, session);
+  persistSession(code, session);
   saveMemberActivity(code, {
     type: "workout_completed",
     workoutTitle: session.title,
@@ -491,9 +510,105 @@ export function countTotalSets(session) {
   );
 }
 
+// นับเซตที่ถูกข้าม (ลูกเทรนกดข้ามท่าพร้อมเหตุผล) — ไม่นับเป็นทั้งทำสำเร็จและไม่สำเร็จ
+// นับจำนวนวันติดต่อกันที่ทำ workout สำเร็จ (นับย้อนจากวันนี้/เมื่อวาน)
+// ใช้แสดง badge สร้างแรงจูงใจแบบแอปฟิตเนสทั่วไป
+export function calculateStreakDays(sessions) {
+  const completedDays = new Set(
+    (sessions || [])
+      .filter((item) => item && item.status === "completed" && item.completedAt)
+      .map((item) => {
+        const d = new Date(Number(item.completedAt));
+        return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+      })
+  );
+  if (!completedDays.size) return 0;
+
+  const keyOf = (date) => `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  // ถ้าไม่ได้ทำทั้งวันนี้และเมื่อวาน ถือว่า streak ขาดแล้ว
+  let cursor = null;
+  if (completedDays.has(keyOf(today))) cursor = today;
+  else if (completedDays.has(keyOf(yesterday))) cursor = yesterday;
+  else return 0;
+
+  let streak = 0;
+  while (completedDays.has(keyOf(cursor))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+export function countSkippedSets(session) {
+  return session.exercises.reduce(
+    (total, exercise) => total + exercise.sets.filter((set) => set.skipped).length,
+    0
+  );
+}
+
+// % ความสำเร็จคิดจากเซตที่ "ตั้งใจทำจริง" เท่านั้น (ไม่รวมเซตที่ข้าม)
 export function getWorkoutProgress(session) {
-  const total = Math.max(countTotalSets(session), 1);
-  return Math.round((countCompletedSets(session) / total) * 100);
+  const attempted = Math.max(countTotalSets(session) - countSkippedSets(session), 1);
+  return Math.round((countCompletedSets(session) / attempted) * 100);
+}
+
+// ข้ามท่าออกกำลังกายพร้อมระบุเหตุผล — เซตที่ยังไม่ได้ทำจะถูก mark เป็น skipped
+// ทำให้เทรนเนอร์เห็นชัดว่า "ข้ามตั้งใจ" ไม่ใช่ "เลิกกลางคัน" และสถิติไม่เพี้ยน
+export function skipExercise(code, session, exerciseIndex, reason) {
+  const exercise = session.exercises[exerciseIndex];
+  if (!exercise) return session;
+
+  exercise.skipped = true;
+  exercise.skipReason = reason || "อื่นๆ";
+  exercise.sets.forEach((set) => {
+    if (!set.completed) {
+      set.skipped = true;
+      set.skipReason = exercise.skipReason;
+    }
+  });
+
+  session.updatedAt = Date.now();
+  persistSession(code, session);
+  return session;
+}
+
+// บันทึก session แบบกันข้อมูลหายตอนเน็ตหลุด (pattern เดียวกับระบบโภชนาการ)
+// บันทึกลงเครื่องก่อนเสมอ แล้วค่อยส่งขึ้น Firebase — ถ้าส่งไม่ผ่านให้ mark เป็น pending ไว้ซิงค์ทีหลัง
+function persistSession(code, session) {
+  saveSessionLocal(code, session);
+  try {
+    Promise.resolve(saveWorkoutSession(code, session.id, session))
+      .then((ok) => {
+        const current = getActiveWorkoutSession(code);
+        if (!current || current.id !== session.id) return;
+        if (ok === false) {
+          current.syncStatus = "pending";
+        } else {
+          delete current.syncStatus;
+        }
+        saveSessionLocal(code, current);
+      })
+      .catch(() => {
+        const current = getActiveWorkoutSession(code);
+        if (!current || current.id !== session.id) return;
+        current.syncStatus = "pending";
+        saveSessionLocal(code, current);
+      });
+  } catch {
+    session.syncStatus = "pending";
+    saveSessionLocal(code, session);
+  }
+}
+
+// ถ้ามี session ที่ยังซิงค์ไม่สำเร็จค้างอยู่ ให้ลองส่งใหม่เงียบๆ ตอนเปิดหน้า
+export function retryPendingSession(code) {
+  const session = getActiveWorkoutSession(code);
+  if (!session || session.syncStatus !== "pending") return;
+  persistSession(code, session);
 }
 
 function saveSessionLocal(code, session) {

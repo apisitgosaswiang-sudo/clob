@@ -6,6 +6,7 @@ import {
   getActiveWorkoutSession,
   syncSessionWithProgram,
   updateWorkoutSet,
+  skipExercise,
   setCurrentExercise,
   completeWorkout,
   cancelWorkoutSession,
@@ -92,7 +93,7 @@ export async function renderWorkoutOverview() {
       <div class="workout-screen">
         <header class="workout-topbar">
           <button id="workout-back" class="back-button" aria-label="กลับ">←</button>
-          <div><p>WORKOUT</p><h1>${escapeHtml(member.workout.title)}</h1>${member.workout.dayLabel ? `<small>${escapeHtml(member.workout.dayLabel)}</small>` : ""}</div>
+          <div><p>WORKOUT${Number(member.workout.queueLength) > 1 ? ` · DAY ${member.workout.dayNumber}/${member.workout.queueLength}` : ""}</p><h1>${escapeHtml(member.workout.title)}</h1>${member.workout.dayLabel ? `<small>${escapeHtml(member.workout.dayLabel)}</small>` : ""}</div>
           <span class="workout-percent">READY</span>
         </header>
         <section class="workout-progress-card card">
@@ -239,6 +240,8 @@ export async function renderExerciseTracker(exerciseIndex) {
         <span>${completedCount}/${exercise.sets.length}</span>
       </header>
 
+      ${Number(exercise.lastWeight) > 0 ? `<p class="exercise-last-weight">ครั้งก่อนยกได้ <strong>${exercise.lastWeight} kg</strong></p>` : ""}
+
       ${exercise.imageUrl ? `<div class="exercise-tracker-image"><img src="${escapeHtml(exercise.imageUrl)}" alt="${escapeHtml(exercise.name)}"></div>` : ""}
 
       <section class="exercise-instruction card">
@@ -259,7 +262,7 @@ export async function renderExerciseTracker(exerciseIndex) {
         </div>
 
         ${exercise.sets.map((set, setIndex) => `
-          <div class="set-row ${set.completed ? "is-complete" : ""}">
+          <div class="set-row ${set.completed ? "is-complete" : ""} ${set.skipped ? "is-skipped" : ""}">
             <strong>${set.setNumber}</strong>
             <input
               class="set-input"
@@ -302,6 +305,23 @@ export async function renderExerciseTracker(exerciseIndex) {
         `).join("")}
       </section>
 
+      ${exercise.skipped ? `
+        <div class="exercise-skipped-note">ข้ามท่านี้แล้ว · เหตุผล: ${escapeHtml(exercise.skipReason || "อื่นๆ")}</div>
+      ` : `
+        <button id="skip-exercise" class="button button-secondary skip-exercise-button">ข้ามท่านี้</button>
+      `}
+
+      <div id="skip-reason-sheet" class="skip-reason-sheet" hidden>
+        <div class="skip-reason-card">
+          <strong>ข้ามท่านี้เพราะอะไร?</strong>
+          <button data-skip-reason="เจ็บ/ไม่สบายตัว">เจ็บ / ไม่สบายตัว</button>
+          <button data-skip-reason="ไม่มีอุปกรณ์">ไม่มีอุปกรณ์</button>
+          <button data-skip-reason="เครื่องไม่ว่าง">เครื่องไม่ว่าง</button>
+          <button data-skip-reason="อื่นๆ">อื่นๆ</button>
+          <button id="skip-cancel" class="skip-reason-cancel">ยกเลิก</button>
+        </div>
+      </div>
+
       <div class="exercise-actions">
         <button id="previous-exercise" class="button button-secondary" ${exerciseIndex === 0 ? "disabled" : ""}>
           ← ก่อนหน้า
@@ -317,8 +337,16 @@ export async function renderExerciseTracker(exerciseIndex) {
       <div id="rest-timer" class="rest-timer" hidden>
         <div class="rest-timer-card">
           <p>REST TIMER</p>
-          <strong id="rest-timer-value">${exercise.restSeconds}</strong>
-          <span>วินาที</span>
+          <div class="rest-ring-wrap">
+            <svg class="rest-ring" viewBox="0 0 120 120" aria-hidden="true">
+              <circle class="rest-ring-track" cx="60" cy="60" r="52" />
+              <circle id="rest-ring-progress" class="rest-ring-progress" cx="60" cy="60" r="52" />
+            </svg>
+            <div class="rest-ring-label">
+              <strong id="rest-timer-value">${exercise.restSeconds}</strong>
+              <span>วินาที</span>
+            </div>
+          </div>
           <button id="skip-rest" class="button button-secondary">ข้ามเวลาพัก</button>
         </div>
       </div>
@@ -328,6 +356,22 @@ export async function renderExerciseTracker(exerciseIndex) {
   document.querySelector("#exercise-back").addEventListener("click", () => navigate("/workout"));
   document.querySelectorAll("[data-member-route]").forEach(button => button.addEventListener("click", () => navigate(button.dataset.memberRoute)));
   document.querySelector("[data-member-progress]")?.addEventListener("click", () => navigate(`/member-progress-${code}`));
+
+  document.querySelector("#skip-exercise")?.addEventListener("click", () => {
+    const sheet = document.querySelector("#skip-reason-sheet");
+    if (sheet) sheet.hidden = false;
+  });
+  document.querySelector("#skip-cancel")?.addEventListener("click", () => {
+    const sheet = document.querySelector("#skip-reason-sheet");
+    if (sheet) sheet.hidden = true;
+  });
+  document.querySelectorAll("[data-skip-reason]").forEach((button) => {
+    button.addEventListener("click", () => {
+      skipExercise(code, session, exerciseIndex, button.dataset.skipReason);
+      showToast("ข้ามท่านี้แล้ว เทรนเนอร์จะเห็นเหตุผลที่ระบุ");
+      renderExerciseTracker(exerciseIndex);
+    });
+  });
 
   document.querySelectorAll("[data-set-index]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -349,6 +393,9 @@ export async function renderExerciseTracker(exerciseIndex) {
       });
 
       startRestTimer(exercise.restSeconds);
+
+      // ตรวจว่าทำสถิติใหม่ไหม (แจ้งเตือนเฉยๆ ไม่แก้โปรแกรม)
+      checkForNewPR(exercise.name, weight, reps);
 
       button.classList.add("is-complete");
       button.textContent = "✓";
@@ -433,19 +480,62 @@ function showToast(message) {
   setTimeout(() => { toast.hidden = true; }, 2400);
 }
 
+async function checkForNewPR(exerciseName, weight, reps) {
+  if (Number(weight) <= 0) return;
+  try {
+    const code = sessionStorage.getItem("clob_member_code");
+    if (!code) return;
+    const prs = await loadPRs(code);
+    const result = await recordAutoPR(code, prs, exerciseName, weight, reps);
+    if (result) {
+      showPRCelebration(exerciseName, result.weight, result.previous);
+    }
+  } catch {
+    // ตรวจ PR ไม่สำเร็จไม่ควรกระทบการบันทึกเซต
+  }
+}
+
+function showPRCelebration(exerciseName, weight, previous) {
+  const existing = document.querySelector("#pr-celebration");
+  existing?.remove();
+
+  const box = document.createElement("div");
+  box.id = "pr-celebration";
+  box.className = "pr-celebration";
+  box.setAttribute("role", "status");
+  box.innerHTML = `
+    <strong>New PR! 🎉</strong>
+    <span>${escapeHtml(exerciseName)} ${weight} kg${previous > 0 ? ` (เดิม ${previous} kg)` : ""}</span>
+  `;
+  document.body.appendChild(box);
+  setTimeout(() => box.remove(), 4000);
+}
+
 function startRestTimer(seconds = APP_CONFIG.defaultRestSeconds) {
   stopRestTimer();
   const overlay = document.querySelector("#rest-timer");
   const value = document.querySelector("#rest-timer-value");
   if (!overlay || !value) return;
 
-  let remaining = Number(seconds);
+  const total = Number(seconds) || 1;
+  let remaining = total;
   value.textContent = remaining;
   overlay.hidden = false;
+
+  const ring = document.querySelector("#rest-ring-progress");
+  const circumference = 2 * Math.PI * 52;
+  const paintRing = () => {
+    if (!ring) return;
+    const ratio = Math.max(0, Math.min(1, remaining / total));
+    ring.style.strokeDasharray = String(circumference);
+    ring.style.strokeDashoffset = String(circumference * (1 - ratio));
+  };
+  paintRing();
 
   timerInterval = setInterval(() => {
     remaining -= 1;
     value.textContent = Math.max(remaining, 0);
+    paintRing();
 
     if (remaining <= 0) {
       stopRestTimer();

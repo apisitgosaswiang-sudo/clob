@@ -9,6 +9,8 @@ import {
   formatMetric
 } from "./checkins.js";
 import { getProgressPhotoSets } from "./firebase.js";
+import { drawLineChart } from "./progress-charts.js";
+import { loadPRs, latestPRsByExercise } from "./prs.js";
 import { escapeHtml, renderAvatar } from "./utils.js";
 
 const app = document.querySelector("#app");
@@ -25,6 +27,8 @@ const numericFields = [
 
 let member = null;
 let checkins = [];
+let activeChart = "weight";
+let prs = [];
 let photoSets = {};
 let editingCheckin = null;
 let code = "";
@@ -45,10 +49,11 @@ export async function renderMemberProgressPage(memberCode) {
     </main>
   `;
 
-  [member, checkins, photoSets] = await Promise.all([
+  [member, checkins, photoSets, prs] = await Promise.all([
     loadMember(code),
     loadCheckins(code),
-    getProgressPhotoSets(code)
+    getProgressPhotoSets(code),
+    loadPRs(code)
   ]);
   photoSets = filterPhotoSets(photoSets);
   sortCheckins();
@@ -105,9 +110,48 @@ function render() {
 
         <section class="clob-progress-metrics" aria-label="ค่าล่าสุด">
           ${metricMarkup("Body Fat", formatMetric(bodyFat, "%"), bodyFat === null ? "ยังไม่มีข้อมูล" : "ล่าสุด")}
-          ${metricMarkup("Waist", formatMetric(waist, "cm"), waist === null ? "ยังไม่มีข้อมูล" : "ล่าสุด")}
+          ${metricMarkup("Waist", formatMetric(waist, "นิ้ว"), waist === null ? "ยังไม่มีข้อมูล" : "ล่าสุด")}
           ${metricMarkup("Photos", String(photosCount), photosCount === 1 ? "Set" : "Sets", "photos")}
         </section>
+
+        <section class="clob-progress-section" aria-labelledby="chart-title">
+          <div class="clob-progress-section-head">
+            <div>
+              <p class="clob-kicker">แนวโน้ม</p>
+              <h2 id="chart-title">กราฟความก้าวหน้า</h2>
+            </div>
+          </div>
+
+          <div class="member-chart-tabs">
+            <button data-chart="weight" class="${activeChart === "weight" ? "is-active" : ""}">น้ำหนัก</button>
+            <button data-chart="bodyFat" class="${activeChart === "bodyFat" ? "is-active" : ""}">Body Fat</button>
+            <button data-chart="waist" class="${activeChart === "waist" ? "is-active" : ""}">รอบเอว</button>
+          </div>
+
+          <div class="member-chart-wrap">
+            <canvas id="member-progress-chart" height="200"></canvas>
+          </div>
+        </section>
+
+        ${prs.length ? `
+          <section class="clob-progress-section" aria-labelledby="pr-title">
+            <div class="clob-progress-section-head">
+              <div>
+                <p class="clob-kicker">สถิติส่วนตัว</p>
+                <h2 id="pr-title">Personal Records</h2>
+              </div>
+              <span>${prs.length}</span>
+            </div>
+            <div class="member-pr-list">
+              ${latestPRsByExercise(prs).slice(0, 6).map((pr) => `
+                <div class="member-pr-item">
+                  <span>${escapeHtml(pr.exercise)}</span>
+                  <strong>${Number(pr.weight)} kg${Number(pr.reps) > 0 ? ` × ${Number(pr.reps)}` : ""}</strong>
+                </div>
+              `).join("")}
+            </div>
+          </section>
+        ` : ""}
 
         <section class="clob-progress-section" aria-labelledby="timeline-title">
           <div class="clob-progress-section-head">
@@ -175,7 +219,7 @@ function timelineMarkup() {
           ${item.bodyFat !== "" && item.bodyFat !== null && item.bodyFat !== undefined
             ? `Body Fat ${formatMetric(item.bodyFat, "%")}`
             : item.waist !== "" && item.waist !== null && item.waist !== undefined
-              ? `Waist ${formatMetric(item.waist, "cm")}`
+              ? `Waist ${formatMetric(item.waist, "นิ้ว")}`
               : escapeHtml(item.note || "Progress update")}
         </span>
       </span>
@@ -184,7 +228,33 @@ function timelineMarkup() {
   `).join("");
 }
 
+// วาดกราฟแนวโน้มจากข้อมูล check-in ที่มี (ใช้ตัววาดเดียวกับฝั่งเทรนเนอร์)
+function drawMemberChart() {
+  const canvas = document.querySelector("#member-progress-chart");
+  if (!canvas) return;
+
+  const points = [...checkins]
+    .reverse()
+    .filter((item) => item[activeChart] !== "" && Number.isFinite(Number(item[activeChart])))
+    .map((item) => ({
+      label: new Intl.DateTimeFormat("th-TH", { month: "short", day: "2-digit" })
+        .format(new Date(`${item.date}T00:00:00`)),
+      value: Number(item[activeChart])
+    }));
+
+  drawLineChart(canvas, points);
+}
+
 function bind() {
+  drawMemberChart();
+
+  document.querySelectorAll("[data-chart]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeChart = button.dataset.chart;
+      render();
+    });
+  });
+
   document.querySelector("#progress-back").addEventListener("click", () => navigate("/member"));
   document.querySelector("#progress-profile").addEventListener("click", () => navigate("/member-profile"));
   document.querySelector("#member-checkin-action").addEventListener("click", () => {
@@ -262,17 +332,17 @@ function editorMarkup(checkin) {
         <section class="clob-checkin-core">
           ${numberField("weight", "น้ำหนัก", "kg", checkin.weight, "0.1", true)}
           ${numberField("bodyFat", "Body Fat", "%", checkin.bodyFat)}
-          ${numberField("waist", "รอบเอว", "cm", checkin.waist)}
+          ${numberField("waist", "รอบเอว", "นิ้ว", checkin.waist)}
         </section>
 
         <details class="clob-checkin-more">
           <summary>เพิ่มข้อมูลสัดส่วนอื่น ๆ <span>＋</span></summary>
           <div class="clob-checkin-more-grid">
             ${numberField("skeletalMuscle", "กล้ามเนื้อ", "kg", checkin.skeletalMuscle)}
-            ${numberField("chest", "รอบอก", "cm", checkin.chest)}
-            ${numberField("hip", "รอบสะโพก", "cm", checkin.hip)}
-            ${numberField("arm", "รอบแขน", "cm", checkin.arm)}
-            ${numberField("thigh", "รอบต้นขา", "cm", checkin.thigh)}
+            ${numberField("chest", "รอบอก", "นิ้ว", checkin.chest)}
+            ${numberField("hip", "รอบสะโพก", "นิ้ว", checkin.hip)}
+            ${numberField("arm", "รอบแขน", "นิ้ว", checkin.arm)}
+            ${numberField("thigh", "รอบต้นขา", "นิ้ว", checkin.thigh)}
           </div>
         </details>
 
@@ -292,7 +362,10 @@ function editorMarkup(checkin) {
   `;
 }
 
+const FIELD_MAX = { weight: 300, bodyFat: 60, skeletalMuscle: 100, chest: 100, waist: 100, hip: 100, arm: 50, thigh: 60 };
+
 function numberField(name, label, unit, value, step = "0.1", autofocus = false) {
+  const max = FIELD_MAX[name] || 999;
   return `
     <label class="clob-checkin-field">
       <span>${escapeHtml(label)}</span>
@@ -302,6 +375,7 @@ function numberField(name, label, unit, value, step = "0.1", autofocus = false) 
           type="number"
           inputmode="decimal"
           min="0"
+          max="${max}"
           step="${escapeHtml(step)}"
           value="${escapeHtml(value ?? "")}"
           ${autofocus ? "autofocus" : ""}

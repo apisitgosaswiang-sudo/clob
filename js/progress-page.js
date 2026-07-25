@@ -9,6 +9,7 @@ import {
   removeCheckin,
   latestValue,
   calculateChange,
+  calculateRecentChange,
   formatMetric
 } from "./checkins.js";
 
@@ -45,6 +46,15 @@ export async function renderProgressPage(code) {
     navigate("/trainer-login");
     return;
   }
+
+  app.innerHTML = `
+    <main class="page trainer-page">
+      <div class="member-loading">
+        <div class="loading-spinner"></div>
+        <p>กำลังโหลดข้อมูล...</p>
+      </div>
+    </main>
+  `;
 
   const members = await loadMembers();
   member = getMemberByCode(members, code);
@@ -89,9 +99,9 @@ function render() {
         </section>
 
         <section class="metric-grid">
-          ${metricCard("Weight", formatMetric(weight, "kg"), deltaText(calculateChange(checkins, "weight"), "kg"))}
+          ${metricCard("Weight", formatMetric(weight, "kg"), `${deltaText(calculateChange(checkins, "weight"), "kg")} · 30วัน ${deltaText(calculateRecentChange(checkins, "weight"), "kg")}`)}
           ${metricCard("Body Fat", formatMetric(bodyFat, "%"), deltaText(calculateChange(checkins, "bodyFat"), "%"))}
-          ${metricCard("Waist", formatMetric(waist, "cm"), deltaText(calculateChange(checkins, "waist"), "cm"))}
+          ${metricCard("Waist", formatMetric(waist, "นิ้ว"), deltaText(calculateChange(checkins, "waist"), "นิ้ว"))}
           ${metricCard("Muscle", formatMetric(muscle, "kg"), deltaText(calculateChange(checkins, "skeletalMuscle"), "kg"))}
         </section>
 

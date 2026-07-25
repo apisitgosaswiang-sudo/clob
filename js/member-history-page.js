@@ -33,7 +33,7 @@ export async function renderMemberHistoryPage(code) {
 
   app.innerHTML = `<main class="page trainer-page"><div class="member-detail-screen">
     <header class="member-detail-header">
-      <button id="history-back" class="back-button">←</button>
+      <button id="history-back" class="back-button" aria-label="ย้อนกลับ">←</button>
       <h1>Workout</h1><span></span>
     </header>
     <section class="member-profile-card">

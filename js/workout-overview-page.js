@@ -1,6 +1,6 @@
 import { navigate } from "./router.js";
 import { loadMembers } from "./members.js";
-import { getMemberWorkoutSessions } from "./firebase.js";
+import { getWorkoutSessions } from "./firebase.js";
 import { loadWeeklyCheckins } from "./weekly-checkins.js";
 import { escapeHtml } from "./utils.js";
 
@@ -21,14 +21,17 @@ export async function renderWorkoutOverviewPage() {
     </main>
   `;
 
-  const members = (await loadMembers()).filter((member) => member.status === "active");
+  // ดึง session ของทุกคนในคำขอเดียว (เดิมยิง 2 คำขอต่อคน = 60 คำขอถ้ามี 30 คน)
+  const [members, allSessions] = await Promise.all([
+    loadMembers(),
+    getWorkoutSessions()
+  ]);
+  const activeMembers = members.filter((member) => member.status === "active");
 
-  const rows = await Promise.all(members.map(async (member) => {
-    const [sessions, weekly] = await Promise.all([
-      getMemberWorkoutSessions(member.code),
-      loadWeeklyCheckins(member.code)
-    ]);
-    const completedSessions = Object.values(sessions || {}).filter((item) => item && item.status === "completed");
+  const rows = await Promise.all(activeMembers.map(async (member) => {
+    const weekly = await loadWeeklyCheckins(member.code);
+    const sessions = (allSessions || {})[member.code] || {};
+    const completedSessions = Object.values(sessions).filter((item) => item && item.status === "completed");
     const weeklyCompleted = completedSessions.filter((item) => Date.now() - Number(item.completedAt || 0) < 7 * 86400000).length;
     const latestWeekly = weekly[0] || null;
     const adherence = latestWeekly ? Number(latestWeekly.workoutAdherence || 0) : null;
@@ -53,7 +56,7 @@ function render(rows) {
     <main class="page trainer-page">
       <div class="member-detail-screen">
         <header class="member-detail-header">
-          <button id="workout-overview-back" class="back-button">←</button>
+          <button id="workout-overview-back" class="back-button" aria-label="ย้อนกลับ">←</button>
           <h1>ภาพรวม Workout</h1><span></span>
         </header>
 

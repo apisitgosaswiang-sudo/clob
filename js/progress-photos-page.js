@@ -53,6 +53,9 @@ export async function renderProgressPhotosPage(code) {
   render();
 }
 
+let compareA = "";
+let compareB = "";
+
 function render() {
   app.innerHTML = `
     <main class="page trainer-page">
@@ -84,6 +87,8 @@ function render() {
           <p>${isTrainerView ? "ดูรูปที่สมาชิกอัปโหลดมาแบบ Read-only" : "Select, crop, then confirm. Upload starts only after Save Photos."}</p>
         </section>
 
+        ${isTrainerView ? compareMarkup() : ""}
+
         ${isTrainerView ? trainerGalleryMarkup() : `<section class="progress-photo-grid">${slots.map((slot) => slotMarkup(slot)).join("")}</section>`}
 
         ${isTrainerView ? "" : `<section class="photo-privacy card"><span>Private</span><p>สมาชิกเป็นผู้จัดการรูปของตนเอง</p></section>`}
@@ -99,6 +104,54 @@ function render() {
   `;
 
   bind();
+}
+
+// โหมดเทียบรูป 2 วัน วางคู่กัน (before/after)
+function compareMarkup() {
+  const sets = Object.values(savedPhotoSets || {})
+    .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+  if (sets.length < 2) return "";
+
+  const options = (selected) => sets.map((set) => {
+    const key = String(set.createdAt || set.id || "");
+    const label = new Date(Number(set.createdAt || Date.now())).toLocaleDateString("th-TH", { dateStyle: "medium" });
+    return `<option value="${esc(key)}" ${String(selected) === key ? "selected" : ""}>${esc(label)}</option>`;
+  }).join("");
+
+  const keyOf = (set) => String(set.createdAt || set.id || "");
+  const first = compareA || keyOf(sets[0]);
+  const last = compareB || keyOf(sets[sets.length - 1]);
+  const setA = sets.find((set) => keyOf(set) === first) || sets[0];
+  const setB = sets.find((set) => keyOf(set) === last) || sets[sets.length - 1];
+
+  return `
+    <section class="photo-compare card">
+      <div class="photo-compare-head">
+        <strong>เทียบก่อน–หลัง</strong>
+        <span>${sets.length} ชุดรูป</span>
+      </div>
+      <div class="photo-compare-controls">
+        <label><span>ก่อน</span><select id="compare-a">${options(first)}</select></label>
+        <label><span>หลัง</span><select id="compare-b">${options(last)}</select></label>
+      </div>
+      <div class="photo-compare-rows">
+        ${slots.map((slot) => {
+          const a = setA?.photos?.[slot]?.url;
+          const b = setB?.photos?.[slot]?.url;
+          if (!a && !b) return "";
+          return `
+            <div class="photo-compare-row">
+              <p>${esc(slot)}</p>
+              <div class="photo-compare-pair">
+                <figure>${a ? `<img src="${esc(a)}" alt="ก่อน ${esc(slot)}">` : `<div class="photo-missing">ไม่มีรูป</div>`}<figcaption>ก่อน</figcaption></figure>
+                <figure>${b ? `<img src="${esc(b)}" alt="หลัง ${esc(slot)}">` : `<div class="photo-missing">ไม่มีรูป</div>`}<figcaption>หลัง</figcaption></figure>
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
 }
 
 function trainerGalleryMarkup() {
@@ -133,6 +186,16 @@ function slotMarkup(slot) {
 
 function bind() {
   document.querySelector("#progress-back").addEventListener("click", () => { navigate(isTrainerView ? `/progress-${member.code}` : `/member-progress-${member.code}`); });
+
+  document.querySelector("#compare-a")?.addEventListener("change", (event) => {
+    compareA = event.target.value;
+    render();
+  });
+  document.querySelector("#compare-b")?.addEventListener("change", (event) => {
+    compareB = event.target.value;
+    render();
+  });
+
   if (isTrainerView) return;
 
   document.querySelectorAll("[data-photo-slot]").forEach((button) => {

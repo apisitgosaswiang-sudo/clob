@@ -66,66 +66,6 @@ registerPatternRoute(/^\/member-workout-day-([^-]+)-(\d{8})$/, renderMemberWorko
 registerPatternRoute(/^\/member-schedule-([^/]+)$/, renderMemberSchedulePage);
 registerPatternRoute(/^\/program-builder-(.+)$/, renderProgramBuilder);
 registerRoute("/404", () => {
-  const path = window.location.hash.replace(/^#/, "");
-
-  const workoutMatch = path.match(/^\/workout-exercise-(\d+)$/);
-  if (workoutMatch) {
-    renderExerciseTracker(Number(workoutMatch[1]));
-    return;
-  }
-
-  if (path === "/member-add") { renderAddMemberPage(); return; }
-
-  const editMatch = path.match(/^\/member-edit-(\d{5})$/);
-  if (editMatch) { renderEditMemberPage(editMatch[1]); return; }
-
-  const pkgMatch = path.match(/^\/member-package-(\d{5})$/);
-  if (pkgMatch) { renderPackagePage(pkgMatch[1]); return; }
-
-  const mpMatch = path.match(/^\/member-progress-(\d{5})$/);
-  if (mpMatch) { renderMemberProgressPage(mpMatch[1]); return; }
-
-  const memberMatch = path.match(/^\/member-detail-(\d{5})$/);
-  if (memberMatch) {
-    renderMemberDetail(memberMatch[1]);
-    return;
-  }
-
-  const trainerNutritionMatch = path.match(/^\/trainer-nutrition-(\d{5})$/);
-  if (trainerNutritionMatch) {
-    renderTrainerNutritionPage(trainerNutritionMatch[1]);
-    return;
-  }
-
-  if (path === "/trainer-settings") {
-    renderTrainerSettingsPage();
-    return;
-  }
-
-  const weeklyCheckinMatch = path.match(/^\/weekly-checkins-(\d{5})$/);
-  if (weeklyCheckinMatch) {
-    renderWeeklyCheckinPage(weeklyCheckinMatch[1]);
-    return;
-  }
-
-  const progressMatch = path.match(/^\/progress-(\d{5})$/);
-  if (progressMatch) {
-    renderProgressPage(progressMatch[1]);
-    return;
-  }
-
-  const progressPhotosMatch = path.match(/^\/progress-photos-(\d{5})$/);
-  if (progressPhotosMatch) {
-    renderProgressPhotosPage(progressPhotosMatch[1]);
-    return;
-  }
-
-  const programMatch = path.match(/^\/program-builder-(.+)$/);
-  if (programMatch) {
-    renderProgramBuilder(programMatch[1]);
-    return;
-  }
-
   renderNotFound();
 });
 
