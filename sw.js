@@ -1,4 +1,4 @@
-const CACHE_NAME = "clob-boot-recovery-20260725";
+const CACHE_NAME = "clob-v3-hotfix-whitescreen";
 
 const APP_SHELL = [
   "./",
