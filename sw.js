@@ -1,4 +1,4 @@
-const CACHE_NAME = "clob-rc2-sync-hotfix-20260725";
+const CACHE_NAME = "clob-boot-recovery-20260725";
 
 const APP_SHELL = [
   "./",
