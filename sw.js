@@ -1,4 +1,4 @@
-const CACHE_NAME = "morning-warrior-v2-day-queue-extras";
+const CACHE_NAME = "morning-warrior-v3-batch2";
 
 const APP_SHELL = [
   "./",
@@ -25,6 +25,8 @@ const APP_SHELL = [
   "./js/member-schedule-page.js",
   "./js/member-workout-history-page.js",
   "./js/workout-overview-page.js",
+  "./js/anomaly-alerts.js",
+  "./js/ai-coach-draft.js",
   "./js/member-workout-day-page.js",
   "./js/dynamic-home.js",
   "./js/emotion-design.js",
@@ -50,10 +52,8 @@ const APP_SHELL = [
   "./js/progress-photos-page.js",
   "./js/prs.js",
   "./js/image-processor.js",
-  "./js/trainer.js",
   "./js/trainer-profile.js",
   "./js/trainer-security.js",
-  "./js/trainer-dashboard.js",
   "./js/trainer-dashboard-page.js",
   "./js/trainer-settings-page.js",
   "./js/weekly-checkins.js",
