@@ -108,6 +108,33 @@ export function getFirebaseApp() {
   return firebaseApp;
 }
 
+export function waitForFirebaseReady(timeoutMs = 8000) {
+  if (firebaseReady && authUser && database && dbApi && storage && storageApi) {
+    return Promise.resolve(true);
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("clob:firebase-status", onStatus);
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const onStatus = (event) => {
+      if (event?.detail?.ready && firebaseReady && authUser && database && dbApi && storage && storageApi) {
+        finish(true);
+      }
+    };
+    const timer = setTimeout(() => finish(false), Math.max(0, Number(timeoutMs) || 0));
+    window.addEventListener("clob:firebase-status", onStatus);
+
+    // Avoid missing an event fired between the initial check and listener setup.
+    if (firebaseReady && authUser && database && dbApi && storage && storageApi) finish(true);
+  });
+}
+
 export function getAppCheckStatus() {
   return {
     required: Boolean(APP_CONFIG.aiRequireAppCheck),
@@ -893,6 +920,9 @@ export function uploadImage(path, blob, onProgress = () => {}) {
   if (!firebaseReady || !storage || !storageApi || !authUser) {
     return Promise.reject(new Error("Firebase Storage is not ready."));
   }
+  if (!(blob instanceof Blob) || blob.size <= 0) {
+    return Promise.reject(new Error("Image file is invalid."));
+  }
 
   const target = storageApi.storageRef(storage, path);
   const task = storageApi.uploadBytesResumable(target, blob, {
@@ -909,22 +939,26 @@ export function uploadImage(path, blob, onProgress = () => {}) {
           : 0;
         onProgress(progress);
       },
-      reject,
+      (error) => reject(error),
       async () => {
-        const url = await storageApi.getDownloadURL(task.snapshot.ref);
-        resolve({
-          url,
-          fullPath: task.snapshot.ref.fullPath,
-          size: task.snapshot.totalBytes,
-          contentType: task.snapshot.metadata.contentType
-        });
+        try {
+          const url = await storageApi.getDownloadURL(task.snapshot.ref);
+          resolve({
+            url,
+            fullPath: task.snapshot.ref.fullPath,
+            size: task.snapshot.totalBytes,
+            contentType: task.snapshot.metadata.contentType
+          });
+        } catch (error) {
+          reject(error);
+        }
       }
     );
   });
 }
 
 export async function saveProgressPhotoSet(memberCode, checkinId, payload) {
-  if (!firebaseReady || !database || !dbApi) return false;
+  if (!firebaseReady || !database || !dbApi || !authUser) return false;
   try {
     await dbApi.set(
       dbApi.ref(database, `clob/progress/${memberCode}/checkins/${checkinId}`),
@@ -938,7 +972,7 @@ export async function saveProgressPhotoSet(memberCode, checkinId, payload) {
 }
 
 export async function getProgressPhotoSets(memberCode) {
-  if (!firebaseReady || !database || !dbApi) return null;
+  if (!firebaseReady || !database || !dbApi || !authUser) return null;
   try {
     const snapshot = await dbApi.get(
       dbApi.ref(database, `clob/progress/${memberCode}/checkins`)

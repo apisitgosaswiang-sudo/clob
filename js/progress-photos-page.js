@@ -1,6 +1,6 @@
 import { navigate } from "./router.js";
 import { loadMembers, getMemberByCode } from "./members.js";
-import { uploadImage, saveProgressPhotoSet, getProgressPhotoSets } from "./firebase.js";
+import { uploadImage, saveProgressPhotoSet, getProgressPhotoSets, waitForFirebaseReady } from "./firebase.js";
 import { uploadProfilePhoto } from "./profile-photo-service.js";
 import { createImageCropper } from "./image-processor.js";
 
@@ -13,6 +13,50 @@ let activeFile = null;
 let cropper = null;
 let isTrainerView = false;
 let savedPhotoSets = {};
+let pendingMetadataRetry = null;
+
+function pendingPhotoStorageKey(memberCode) {
+  return `clob_pending_progress_photos_${String(memberCode || "").trim()}`;
+}
+
+function loadPendingPhotoSets(memberCode) {
+  try {
+    return JSON.parse(localStorage.getItem(pendingPhotoStorageKey(memberCode)) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function savePendingPhotoSets(memberCode, value) {
+  try {
+    const key = pendingPhotoStorageKey(memberCode);
+    const normalized = value && typeof value === "object" ? value : {};
+    if (Object.keys(normalized).length) localStorage.setItem(key, JSON.stringify(normalized));
+    else localStorage.removeItem(key);
+  } catch (error) {
+    console.warn("Could not cache pending progress photos:", error);
+  }
+}
+
+function queuePendingPhotoSet(memberCode, checkinId, payload) {
+  const queued = loadPendingPhotoSets(memberCode);
+  queued[checkinId] = payload;
+  savePendingPhotoSets(memberCode, queued);
+}
+
+async function flushPendingPhotoSets(memberCode) {
+  const queued = loadPendingPhotoSets(memberCode);
+  const ids = Object.keys(queued);
+  if (!ids.length) return true;
+
+  for (const checkinId of ids) {
+    const saved = await saveProgressPhotoSet(memberCode, checkinId, queued[checkinId]);
+    if (!saved) return false;
+    delete queued[checkinId];
+    savePendingPhotoSets(memberCode, queued);
+  }
+  return true;
+}
 
 function esc(value = "") {
   return String(value)
@@ -49,8 +93,21 @@ export async function renderProgressPhotosPage(code) {
   }
 
   pending = {};
-  savedPhotoSets = filterPhotoSets(await getProgressPhotoSets(code));
+  savedPhotoSets = {};
+
+  // The app renders before Firebase initializes. Wait briefly here so a direct
+  // visit to Progress Photos does not incorrectly show an empty history or let
+  // the first upload race Anonymous Auth / Storage initialization.
+  const firebaseReady = await waitForFirebaseReady(8000);
+  if (firebaseReady) {
+    await flushPendingPhotoSets(code);
+    savedPhotoSets = filterPhotoSets(await getProgressPhotoSets(code));
+  }
+
   render();
+  if (!firebaseReady) {
+    toast("Firebase ยังไม่พร้อม กรุณารอสักครู่แล้วลองใหม่");
+  }
 }
 
 let compareA = "";
@@ -95,7 +152,7 @@ function render() {
 
         ${isTrainerView ? "" : `<button id="save-photos" class="button button-primary progress-save" ${Object.keys(pending).length ? "" : "disabled"}>Save Photos</button>`}
 
-        ${isTrainerView ? "" : `<input id="progress-file-input" type="file" accept="image/jpeg,image/png,image/webp" hidden>`}
+        ${isTrainerView ? "" : `<input id="progress-file-input" type="file" accept="image/*" hidden>`}
         <div id="crop-modal" class="builder-modal" hidden></div>
         <div id="upload-modal" class="builder-modal" hidden></div>
         <div id="progress-toast" class="toast" hidden></div>
@@ -356,9 +413,39 @@ async function uploadAll() {
   const checkinId = createId();
   const uploaded = {};
 
-  modal.innerHTML = uploadMarkup("Uploading photos...", 0);
+  modal.innerHTML = uploadMarkup("Connecting...", 0);
 
   try {
+    const firebaseReady = await waitForFirebaseReady(8000);
+    if (!firebaseReady) {
+      throw new Error("Firebase Authentication / Storage ยังไม่พร้อม กรุณาตรวจอินเทอร์เน็ตแล้วลองใหม่");
+    }
+
+    // If Storage finished previously but the metadata write failed, retry only
+    // the database save. Do not upload the same image files a second time.
+    if (pendingMetadataRetry) {
+      const retry = pendingMetadataRetry;
+      modal.innerHTML = uploadMarkup("Saving photo record...", 100);
+      const saved = await saveProgressPhotoSet(member.code, retry.checkinId, retry.photoSet);
+      if (!saved) {
+        throw new Error("รูปอยู่ใน Storage แล้ว แต่ยังบันทึกรายการรูปไม่สำเร็จ กรุณาลองใหม่");
+      }
+
+      savedPhotoSets[retry.checkinId] = retry.photoSet;
+      const queued = loadPendingPhotoSets(member.code);
+      delete queued[retry.checkinId];
+      savePendingPhotoSets(member.code, queued);
+      pendingMetadataRetry = null;
+
+      Object.values(pending).forEach((value) => URL.revokeObjectURL(value.previewUrl));
+      pending = {};
+      modal.hidden = true;
+      render();
+      toast("Saved");
+      return;
+    }
+
+    modal.innerHTML = uploadMarkup("Uploading photos...", 0);
     for (let index = 0; index < entries.length; index += 1) {
       const [slot, value] = entries[index];
       const extension = value.blob.type === "image/jpeg"
@@ -376,21 +463,33 @@ async function uploadAll() {
       uploaded[slot] = result;
     }
 
-    const metadataSaved = await saveProgressPhotoSet(member.code, checkinId, {
+    const photoSet = {
       id: checkinId,
       createdAt: Date.now(),
       createdDate: new Date().toISOString(),
       photos: uploaded
-    });
+    };
+    const metadataSaved = await saveProgressPhotoSet(member.code, checkinId, photoSet);
     if (!metadataSaved) {
-      throw new Error("อัปโหลดรูปแล้ว แต่บันทึกข้อมูลรูปลง Firebase ไม่สำเร็จ");
+      // The image files are already in Storage at this point. Keep their URLs
+      // locally so a temporary Realtime Database failure cannot orphan the set.
+      queuePendingPhotoSet(member.code, checkinId, photoSet);
+      pendingMetadataRetry = { checkinId, photoSet };
+      throw new Error("รูปถูกอัปโหลดแล้ว แต่ยังบันทึกรายการรูปไม่สำเร็จ ระบบเก็บไว้รอ Sync ให้แล้ว กรุณากด Retry");
+    }
+
+    savedPhotoSets[checkinId] = photoSet;
+    const queued = loadPendingPhotoSets(member.code);
+    if (queued[checkinId]) {
+      delete queued[checkinId];
+      savePendingPhotoSets(member.code, queued);
     }
 
     Object.values(pending).forEach((value) => URL.revokeObjectURL(value.previewUrl));
     pending = {};
     modal.hidden = true;
     render();
-    toast("Uploaded");
+    toast("Saved");
   } catch (error) {
     showUploadError(error, uploadAll);
   }
