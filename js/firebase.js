@@ -957,16 +957,20 @@ export function uploadImage(path, blob, onProgress = () => {}) {
   });
 }
 
-export async function saveProgressPhotoSet(memberCode, checkinId, payload) {
+export async function saveProgressPhotoSet(memberCode, photoSetId, payload) {
   if (!firebaseReady || !database || !dbApi || !authUser) return false;
   try {
+    // Progress photos have their own collection. Do not mix photo-only records
+    // into metric Check-ins; those records are edited/deleted by a different flow.
     await dbApi.set(
-      dbApi.ref(database, `clob/progress/${memberCode}/checkins/${checkinId}`),
+      dbApi.ref(database, `clob/progress/${memberCode}/photoSets/${photoSetId}`),
       payload
     );
+    markFirebaseOperationHealthy();
     return true;
   } catch (error) {
     console.warn("Could not save progress photos:", error);
+    markFirebaseOperationFailed(error);
     return false;
   }
 }
@@ -974,12 +978,27 @@ export async function saveProgressPhotoSet(memberCode, checkinId, payload) {
 export async function getProgressPhotoSets(memberCode) {
   if (!firebaseReady || !database || !dbApi || !authUser) return null;
   try {
-    const snapshot = await dbApi.get(
-      dbApi.ref(database, `clob/progress/${memberCode}/checkins`)
+    // Read the new dedicated collection plus legacy photo records that older
+    // builds stored under /checkins. This keeps all previously uploaded photos.
+    const [photoSetsSnapshot, legacyCheckinsSnapshot] = await Promise.all([
+      dbApi.get(dbApi.ref(database, `clob/progress/${memberCode}/photoSets`)),
+      dbApi.get(dbApi.ref(database, `clob/progress/${memberCode}/checkins`))
+    ]);
+
+    const current = photoSetsSnapshot.exists() ? photoSetsSnapshot.val() : {};
+    const legacyAll = legacyCheckinsSnapshot.exists() ? legacyCheckinsSnapshot.val() : {};
+    const legacyPhotos = Object.fromEntries(
+      Object.entries(legacyAll || {}).filter(([, item]) => {
+        return item && typeof item === "object" && Object.values(item.photos || {}).some((photo) => Boolean(photo?.url));
+      })
     );
-    return snapshot.exists() ? snapshot.val() : null;
+
+    markFirebaseOperationHealthy();
+    const merged = { ...legacyPhotos, ...(current || {}) };
+    return Object.keys(merged).length ? merged : null;
   } catch (error) {
     console.warn("Could not load progress photos:", error);
+    markFirebaseOperationFailed(error);
     return null;
   }
 }

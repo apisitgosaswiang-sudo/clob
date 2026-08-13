@@ -17,12 +17,21 @@ export function createImageCropper({ file, canvas, zoomInput, onReady }) {
   };
 
   const objectUrl = URL.createObjectURL(file);
+  let loadError = null;
+  let resolveImageReady;
+  const imageReady = new Promise((resolve) => { resolveImageReady = resolve; });
+
   image.onload = () => {
     state.baseScale = Math.max(canvas.width / image.width, canvas.height / image.height);
     state.x = 0;
     state.y = 0;
     draw();
+    resolveImageReady(true);
     onReady?.();
+  };
+  image.onerror = () => {
+    loadError = new Error("ไม่สามารถเปิดรูปนี้ได้ กรุณาเลือกรูป JPG, PNG หรือรูปจาก Photos แล้วลองใหม่");
+    resolveImageReady(false);
   };
   image.src = objectUrl;
 
@@ -83,6 +92,11 @@ export function createImageCropper({ file, canvas, zoomInput, onReady }) {
 
   return {
     async toWebP() {
+      // On iPhone the photo decoder may still be working when the user taps
+      // Use Photo. Wait for the source image before exporting the crop.
+      const ready = await imageReady;
+      if (!ready) throw loadError || new Error("Could not decode image.");
+
       const output = document.createElement("canvas");
       output.width = OUTPUT_WIDTH;
       output.height = OUTPUT_HEIGHT;

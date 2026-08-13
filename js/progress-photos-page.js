@@ -14,6 +14,8 @@ let cropper = null;
 let isTrainerView = false;
 let savedPhotoSets = {};
 let pendingMetadataRetry = null;
+let activeUploadSession = null;
+let activeMemberCode = "";
 
 function pendingPhotoStorageKey(memberCode) {
   return `clob_pending_progress_photos_${String(memberCode || "").trim()}`;
@@ -92,6 +94,12 @@ export async function renderProgressPhotosPage(code) {
     return;
   }
 
+  // Retry/upload state must never leak across members or a fresh page visit.
+  if (activeMemberCode !== code) {
+    pendingMetadataRetry = null;
+    activeUploadSession = null;
+  }
+  activeMemberCode = code;
   pending = {};
   savedPhotoSets = {};
 
@@ -148,6 +156,7 @@ function render() {
 
         ${isTrainerView ? trainerGalleryMarkup() : `<section class="progress-photo-grid">${slots.map((slot) => slotMarkup(slot)).join("")}</section>`}
 
+        ${isTrainerView ? "" : memberSavedHistoryMarkup()}
         ${isTrainerView ? "" : `<section class="photo-privacy card"><span>Private</span><p>สมาชิกเป็นผู้จัดการรูปของตนเอง</p></section>`}
 
         ${isTrainerView ? "" : `<button id="save-photos" class="button button-primary progress-save" ${Object.keys(pending).length ? "" : "disabled"}>Save Photos</button>`}
@@ -215,6 +224,30 @@ function trainerGalleryMarkup() {
   const sets = Object.values(savedPhotoSets || {}).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
   if (!sets.length) return `<section class="photo-readonly-empty card"><strong>สมาชิกยังไม่ได้อัปโหลดรูป</strong><p>เมื่อสมาชิกบันทึกรูปแล้ว รูปจะปรากฏที่นี่</p></section>`;
   return `<section class="trainer-photo-history">${sets.map(set=>`<article class="trainer-photo-set card"><strong>${new Date(set.createdAt||Date.now()).toLocaleDateString("th-TH")}</strong><div class="progress-photo-grid readonly">${slots.map(slot=>{const x=set.photos?.[slot];return `<figure class="readonly-photo">${x?.url?`<a href="${esc(x.url)}" target="_blank"><img src="${esc(x.url)}" alt="${slot}"></a>`:`<div class="photo-missing">${slot}</div>`}<figcaption>${slot}</figcaption></figure>`;}).join("")}</div></article>`).join("")}</section>`;
+}
+
+function memberSavedHistoryMarkup() {
+  const sets = Object.values(savedPhotoSets || {})
+    .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
+    .slice(0, 6);
+  if (!sets.length) return "";
+
+  return `<section class="trainer-photo-history member-photo-history">
+    <div class="progress-photo-intro"><h2>Saved Photos</h2><p>รูปที่บันทึกสำเร็จแล้ว</p></div>
+    ${sets.map((set) => `
+      <article class="trainer-photo-set card">
+        <strong>${new Date(Number(set.createdAt || Date.now())).toLocaleDateString("th-TH")}</strong>
+        <div class="progress-photo-grid readonly">
+          ${slots.map((slot) => {
+            const photo = set?.photos?.[slot];
+            return `<figure class="readonly-photo">${photo?.url
+              ? `<a href="${esc(photo.url)}" target="_blank" rel="noopener"><img src="${esc(photo.url)}" alt="${esc(slot)}"></a>`
+              : `<div class="photo-missing">${esc(slot)}</div>`}<figcaption>${esc(slot)}</figcaption></figure>`;
+          }).join("")}
+        </div>
+      </article>
+    `).join("")}
+  </section>`;
 }
 
 function filterPhotoSets(value) {
@@ -340,6 +373,10 @@ function openCropModal() {
         close();
       } else {
         pending[activeSlot] = result;
+        // A changed crop starts a new upload set. Previously uploaded partial
+        // files must not be reused for a different image selection.
+        activeUploadSession = null;
+        pendingMetadataRetry = null;
         close();
         render();
         toast("Photo ready");
@@ -410,8 +447,7 @@ function confirmUpload() {
 async function uploadAll() {
   const modal = document.querySelector("#upload-modal");
   const entries = Object.entries(pending);
-  const checkinId = createId();
-  const uploaded = {};
+  if (!entries.length && !pendingMetadataRetry) return;
 
   modal.innerHTML = uploadMarkup("Connecting...", 0);
 
@@ -422,20 +458,21 @@ async function uploadAll() {
     }
 
     // If Storage finished previously but the metadata write failed, retry only
-    // the database save. Do not upload the same image files a second time.
+    // the database save. Do not upload the image files a second time.
     if (pendingMetadataRetry) {
       const retry = pendingMetadataRetry;
       modal.innerHTML = uploadMarkup("Saving photo record...", 100);
-      const saved = await saveProgressPhotoSet(member.code, retry.checkinId, retry.photoSet);
+      const saved = await saveProgressPhotoSet(member.code, retry.photoSetId, retry.photoSet);
       if (!saved) {
         throw new Error("รูปอยู่ใน Storage แล้ว แต่ยังบันทึกรายการรูปไม่สำเร็จ กรุณาลองใหม่");
       }
 
-      savedPhotoSets[retry.checkinId] = retry.photoSet;
+      savedPhotoSets[retry.photoSetId] = retry.photoSet;
       const queued = loadPendingPhotoSets(member.code);
-      delete queued[retry.checkinId];
+      delete queued[retry.photoSetId];
       savePendingPhotoSets(member.code, queued);
       pendingMetadataRetry = null;
+      activeUploadSession = null;
 
       Object.values(pending).forEach((value) => URL.revokeObjectURL(value.previewUrl));
       pending = {};
@@ -445,54 +482,99 @@ async function uploadAll() {
       return;
     }
 
+    // Keep one upload session through Retry. If photo 1 was already uploaded
+    // and photo 2 failed, Retry resumes at photo 2 instead of orphaning a
+    // duplicate copy of photo 1 in Firebase Storage.
+    if (!activeUploadSession) {
+      activeUploadSession = {
+        memberCode: member.code,
+        photoSetId: createId(),
+        uploaded: {}
+      };
+    }
+    if (activeUploadSession.memberCode !== member.code) {
+      activeUploadSession = {
+        memberCode: member.code,
+        photoSetId: createId(),
+        uploaded: {}
+      };
+    }
+
+    const { photoSetId, uploaded } = activeUploadSession;
     modal.innerHTML = uploadMarkup("Uploading photos...", 0);
+
     for (let index = 0; index < entries.length; index += 1) {
       const [slot, value] = entries[index];
+      if (uploaded[slot]?.url) {
+        updateUploadProgress(Math.round(((index + 1) / entries.length) * 100));
+        continue;
+      }
+
       const extension = value.blob.type === "image/jpeg"
         ? "jpg"
         : value.blob.type === "image/png" ? "png" : "webp";
-      const filename = `${slot}_${Date.now()}_${index}.${extension}`;
+      const filename = `${slot}_${photoSetId}_${index}.${extension}`;
       const result = await uploadImage(
-        `members/${member.code}/checkins/${checkinId}/${filename}`,
+        `members/${member.code}/progress/${photoSetId}/${filename}`,
         value.blob,
         (itemProgress) => {
           const total = Math.round(((index + itemProgress / 100) / entries.length) * 100);
           updateUploadProgress(total);
         }
       );
+      if (!result?.url || !result?.fullPath) {
+        throw new Error(`อัปโหลดรูป ${slot} ไม่สมบูรณ์ กรุณาลองใหม่`);
+      }
       uploaded[slot] = result;
     }
 
     const photoSet = {
-      id: checkinId,
+      id: photoSetId,
+      memberCode: member.code,
       createdAt: Date.now(),
       createdDate: new Date().toISOString(),
-      photos: uploaded
+      photos: { ...uploaded }
     };
-    const metadataSaved = await saveProgressPhotoSet(member.code, checkinId, photoSet);
+    const metadataSaved = await saveProgressPhotoSet(member.code, photoSetId, photoSet);
     if (!metadataSaved) {
       // The image files are already in Storage at this point. Keep their URLs
       // locally so a temporary Realtime Database failure cannot orphan the set.
-      queuePendingPhotoSet(member.code, checkinId, photoSet);
-      pendingMetadataRetry = { checkinId, photoSet };
+      queuePendingPhotoSet(member.code, photoSetId, photoSet);
+      pendingMetadataRetry = { photoSetId, photoSet };
       throw new Error("รูปถูกอัปโหลดแล้ว แต่ยังบันทึกรายการรูปไม่สำเร็จ ระบบเก็บไว้รอ Sync ให้แล้ว กรุณากด Retry");
     }
 
-    savedPhotoSets[checkinId] = photoSet;
+    savedPhotoSets[photoSetId] = photoSet;
     const queued = loadPendingPhotoSets(member.code);
-    if (queued[checkinId]) {
-      delete queued[checkinId];
+    if (queued[photoSetId]) {
+      delete queued[photoSetId];
       savePendingPhotoSets(member.code, queued);
     }
 
     Object.values(pending).forEach((value) => URL.revokeObjectURL(value.previewUrl));
     pending = {};
+    pendingMetadataRetry = null;
+    activeUploadSession = null;
     modal.hidden = true;
     render();
     toast("Saved");
   } catch (error) {
-    showUploadError(error, uploadAll);
+    showUploadError(normalizeUploadError(error), uploadAll);
   }
+}
+
+function normalizeUploadError(error) {
+  const code = String(error?.code || "");
+  if (code === "storage/unauthorized") {
+    return new Error("Firebase Storage ไม่อนุญาตให้อัปโหลดรูป กรุณาตรวจ Anonymous Authentication, App Check และ Storage Rules");
+  }
+  if (code === "storage/retry-limit-exceeded") {
+    return new Error("อัปโหลดรูปไม่สำเร็จเพราะการเชื่อมต่อหมดเวลา กรุณาตรวจอินเทอร์เน็ตแล้วกด Retry");
+  }
+  if (code === "storage/canceled") {
+    return new Error("การอัปโหลดถูกยกเลิก กรุณากด Retry");
+  }
+  return error instanceof Error ? error : new Error("Upload failed.");
 }
 
 function uploadMarkup(title, progress) {
