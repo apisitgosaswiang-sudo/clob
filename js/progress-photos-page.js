@@ -156,21 +156,104 @@ function render() {
 
         ${isTrainerView ? compareMarkup() : ""}
 
-        ${isTrainerView ? trainerGalleryMarkup() : `<section class="progress-photo-grid">${slots.map((slot) => slotMarkup(slot)).join("")}</section>${memberGalleryMarkup()}`}
+        ${isTrainerView ? trainerGalleryMarkup() : `
+          <section class="progress-photo-grid">${slots.map((slot) => slotMarkup(slot)).join("")}</section>
+          ${saveBarMarkup()}
+          ${memberSocialMarkup()}
+          ${memberGalleryMarkup()}
+        `}
 
-        ${isTrainerView ? "" : `<section class="photo-privacy card"><span>Private</span><p>สมาชิกเป็นผู้จัดการรูปของตนเอง</p></section>`}
-
-        ${isTrainerView ? "" : `<button id="save-photos" class="button button-primary progress-save" ${Object.keys(pending).length ? "" : "disabled"}>Save Photos</button>`}
+        ${isTrainerView ? "" : `<section class="photo-privacy card"><span>Private</span><p>รูป Progress เป็นของสมาชิก และสมาชิกสามารถแก้ไขหรือลบได้เอง</p></section>`}
 
         ${isTrainerView ? "" : `<input id="progress-file-input" type="file" accept="image/*" hidden>`}
         <div id="crop-modal" class="builder-modal" hidden></div>
         <div id="upload-modal" class="builder-modal" hidden></div>
+        <div id="photo-view-modal" class="builder-modal" hidden></div>
+        <div id="story-preview-modal" class="builder-modal" hidden></div>
         <div id="progress-toast" class="toast" hidden></div>
       </div>
     </main>
   `;
 
   bind();
+}
+
+
+function saveBarMarkup() {
+  const readyCount = slots.filter((slot) => Boolean(pending[slot])).length;
+  const complete = readyCount === slots.length;
+  return `
+    <div class="progress-save-bar ${readyCount ? "has-pending" : ""}">
+      <div>
+        <strong>${complete ? "พร้อมบันทึกแล้ว" : `${readyCount}/3 รูปพร้อม`}</strong>
+        <span>${complete ? "Front · Side · Back" : "อัปโหลดให้ครบ 3 มุมก่อนบันทึก"}</span>
+      </div>
+      <button id="save-photos" class="button button-primary progress-save" ${complete ? "" : "disabled"}>Save Photos</button>
+    </div>
+  `;
+}
+
+function memberSocialMarkup() {
+  const sets = Object.values(savedPhotoSets || {})
+    .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+  if (sets.length < 2) return "";
+  const before = sets[0];
+  const after = sets[sets.length - 1];
+  const beforePhoto = before?.photos?.front?.url || before?.photos?.side?.url || before?.photos?.back?.url;
+  const afterPhoto = after?.photos?.front?.url || after?.photos?.side?.url || after?.photos?.back?.url;
+  if (!beforePhoto || !afterPhoto) return "";
+  return `
+    <section class="mw-share-section">
+      <div class="mw-share-section-head">
+        <div><p class="section-label">SHARE YOUR WIN</p><h2>Transformation</h2></div>
+        <span>Story-ready</span>
+      </div>
+      <button type="button" id="open-story-preview" class="mw-transformation-card">
+        <div class="mw-transformation-brand">MORNING WARRIOR</div>
+        <div class="mw-transformation-photos">
+          <figure><img src="${esc(beforePhoto)}" alt="Before"><figcaption>BEFORE</figcaption></figure>
+          <figure><img src="${esc(afterPhoto)}" alt="After"><figcaption>NOW</figcaption></figure>
+        </div>
+        <div class="mw-transformation-copy">
+          <strong>PROGRESS, NOT PERFECTION.</strong>
+          <span>${sets.length} photo check-ins · Tap for Story Preview</span>
+        </div>
+      </button>
+    </section>
+  `;
+}
+
+function openStoryPreview() {
+  const sets = Object.values(savedPhotoSets || {}).sort((a,b)=>Number(a.createdAt||0)-Number(b.createdAt||0));
+  if (sets.length < 2) return;
+  const before = sets[0];
+  const after = sets[sets.length - 1];
+  const beforePhoto = before?.photos?.front?.url || before?.photos?.side?.url || before?.photos?.back?.url;
+  const afterPhoto = after?.photos?.front?.url || after?.photos?.side?.url || after?.photos?.back?.url;
+  if (!beforePhoto || !afterPhoto) return;
+  const modal = document.querySelector("#story-preview-modal");
+  modal.hidden = false;
+  modal.innerHTML = `
+    <div class="mw-story-shell">
+      <button type="button" id="story-close" class="mw-story-close">×</button>
+      <div class="mw-story-card">
+        <div class="mw-story-top"><span>MORNING</span><strong>WARRIOR</strong></div>
+        <p class="mw-story-kicker">MY TRANSFORMATION</p>
+        <h2>Quiet work.<br>Visible progress.</h2>
+        <div class="mw-story-photos">
+          <figure><img src="${esc(beforePhoto)}" alt="Before"><figcaption>BEFORE · ${formatPhotoDate(before)}</figcaption></figure>
+          <figure><img src="${esc(afterPhoto)}" alt="Now"><figcaption>NOW · ${formatPhotoDate(after)}</figcaption></figure>
+        </div>
+        <div class="mw-story-footer"><strong>${sets.length}</strong><span>PROGRESS CHECK-INS</span><small>@ Morning Warrior</small></div>
+      </div>
+      <p class="mw-story-hint">แคปหน้าจอนี้แล้วแชร์ลง Story ได้เลย</p>
+    </div>
+  `;
+  document.querySelector("#story-close").onclick = () => { modal.hidden = true; modal.innerHTML = ""; };
+}
+
+function formatPhotoDate(set) {
+  return new Date(Number(set?.createdAt || Date.now())).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" });
 }
 
 // โหมดเทียบรูป 2 วัน วางคู่กัน (before/after)
@@ -262,7 +345,7 @@ function memberPhotoSetMarkup(set, key) {
         <div class="progress-photo-grid readonly">
           ${slots.map((slot) => {
             const photo = set.photos?.[slot];
-            return `<figure class="readonly-photo">${photo?.url ? `<img src="${esc(photo.url)}" alt="${slot}">` : `<div class="photo-missing">${slot}</div>`}<figcaption>${slot}</figcaption></figure>`;
+            return `<figure class="readonly-photo">${photo?.url ? `<button type="button" class="saved-photo-open" data-view-photo-set="${esc(setId)}" data-view-photo-slot="${slot}" aria-label="ดูและจัดการรูป ${slot}"><img src="${esc(photo.url)}" alt="${slot}"></button>` : `<div class="photo-missing">${slot}</div>`}<figcaption>${slot}</figcaption></figure>`;
           }).join("")}
         </div>
       </article>
@@ -356,6 +439,12 @@ function bind() {
     openCropModal();
   });
 
+  document.querySelector("#open-story-preview")?.addEventListener("click", openStoryPreview);
+
+  document.querySelectorAll("[data-view-photo-set]").forEach((button) => {
+    button.addEventListener("click", () => openPhotoViewer(button.dataset.viewPhotoSet, button.dataset.viewPhotoSlot));
+  });
+
   document.querySelectorAll("[data-photo-edit]").forEach((button) => {
     button.addEventListener("click", () => {
       editingSetId = button.dataset.photoEdit;
@@ -389,6 +478,47 @@ function bind() {
   document.querySelector("#photo-edit-save")?.addEventListener("click", saveEditedSet);
 
   document.querySelector("#save-photos").addEventListener("click", confirmUpload);
+}
+
+
+function openPhotoViewer(setId, slot) {
+  const set = savedPhotoSets?.[setId];
+  const photo = set?.photos?.[slot];
+  if (!photo?.url) return;
+  const modal = document.querySelector("#photo-view-modal");
+  modal.hidden = false;
+  modal.innerHTML = `
+    <div class="photo-viewer-card">
+      <div class="photo-viewer-head">
+        <div><span>${esc(slot.toUpperCase())}</span><strong>${formatPhotoDate(set)}</strong></div>
+        <button type="button" id="photo-view-close">×</button>
+      </div>
+      <img class="photo-viewer-image" src="${esc(photo.url)}" alt="${esc(slot)}">
+      <div class="photo-viewer-actions">
+        <button type="button" id="photo-view-replace" class="button button-secondary">Replace Photo</button>
+        <button type="button" id="photo-view-delete" class="button photo-danger-button">Delete Photo</button>
+      </div>
+    </div>
+  `;
+  const close = () => { modal.hidden = true; modal.innerHTML = ""; };
+  document.querySelector("#photo-view-close").onclick = close;
+  document.querySelector("#photo-view-replace").onclick = () => {
+    close();
+    editingSetId = setId;
+    editPending = {};
+    editRemoved = new Set();
+    editUploadedCache = {};
+    chooseFile(slot, "edit");
+  };
+  document.querySelector("#photo-view-delete").onclick = async () => {
+    if (!window.confirm(`ลบรูป ${slot} นี้ใช่ไหม?`)) return;
+    close();
+    editingSetId = setId;
+    editPending = {};
+    editRemoved = new Set([slot]);
+    editUploadedCache = {};
+    await saveEditedSet();
+  };
 }
 
 function cancelPhotoEdit() {
@@ -596,7 +726,10 @@ async function uploadProfile(result) {
 
 function confirmUpload() {
   const count = Object.keys(pending).length;
-  if (!count) return;
+  if (count !== slots.length) {
+    toast("กรุณาอัปโหลดรูปให้ครบ Front, Side และ Back");
+    return;
+  }
 
   const modal = document.querySelector("#upload-modal");
   modal.hidden = false;
