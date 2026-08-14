@@ -957,20 +957,16 @@ export function uploadImage(path, blob, onProgress = () => {}) {
   });
 }
 
-export async function saveProgressPhotoSet(memberCode, photoSetId, payload) {
+export async function saveProgressPhotoSet(memberCode, checkinId, payload) {
   if (!firebaseReady || !database || !dbApi || !authUser) return false;
   try {
-    // Progress photos have their own collection. Do not mix photo-only records
-    // into metric Check-ins; those records are edited/deleted by a different flow.
     await dbApi.set(
-      dbApi.ref(database, `clob/progress/${memberCode}/photoSets/${photoSetId}`),
+      dbApi.ref(database, `clob/progress/${memberCode}/checkins/${checkinId}`),
       payload
     );
-    markFirebaseOperationHealthy();
     return true;
   } catch (error) {
     console.warn("Could not save progress photos:", error);
-    markFirebaseOperationFailed(error);
     return false;
   }
 }
@@ -978,28 +974,49 @@ export async function saveProgressPhotoSet(memberCode, photoSetId, payload) {
 export async function getProgressPhotoSets(memberCode) {
   if (!firebaseReady || !database || !dbApi || !authUser) return null;
   try {
-    // Read the new dedicated collection plus legacy photo records that older
-    // builds stored under /checkins. This keeps all previously uploaded photos.
-    const [photoSetsSnapshot, legacyCheckinsSnapshot] = await Promise.all([
-      dbApi.get(dbApi.ref(database, `clob/progress/${memberCode}/photoSets`)),
-      dbApi.get(dbApi.ref(database, `clob/progress/${memberCode}/checkins`))
-    ]);
-
-    const current = photoSetsSnapshot.exists() ? photoSetsSnapshot.val() : {};
-    const legacyAll = legacyCheckinsSnapshot.exists() ? legacyCheckinsSnapshot.val() : {};
-    const legacyPhotos = Object.fromEntries(
-      Object.entries(legacyAll || {}).filter(([, item]) => {
-        return item && typeof item === "object" && Object.values(item.photos || {}).some((photo) => Boolean(photo?.url));
-      })
+    const snapshot = await dbApi.get(
+      dbApi.ref(database, `clob/progress/${memberCode}/checkins`)
     );
-
-    markFirebaseOperationHealthy();
-    const merged = { ...legacyPhotos, ...(current || {}) };
-    return Object.keys(merged).length ? merged : null;
+    return snapshot.exists() ? snapshot.val() : null;
   } catch (error) {
     console.warn("Could not load progress photos:", error);
-    markFirebaseOperationFailed(error);
     return null;
+  }
+}
+
+export async function deleteStoredImage(fullPath) {
+  if (!fullPath) return true;
+  if (!firebaseReady || !storage || !storageApi || !authUser) return false;
+  try {
+    await storageApi.deleteObject(storageApi.storageRef(storage, fullPath));
+    return true;
+  } catch (error) {
+    // The database record can still be removed if an old Storage object is
+    // already gone. Treat object-not-found as a successful cleanup.
+    if (error?.code === "storage/object-not-found") return true;
+    console.warn("Could not delete stored image:", error);
+    return false;
+  }
+}
+
+export async function deleteProgressPhotoSet(memberCode, checkinId, payload = null) {
+  if (!firebaseReady || !database || !dbApi || !authUser) return false;
+  try {
+    // Remove the visible record first so a Storage cleanup problem never leaves
+    // a member unable to delete their own progress set.
+    await dbApi.set(
+      dbApi.ref(database, `clob/progress/${memberCode}/checkins/${checkinId}`),
+      null
+    );
+
+    const paths = Object.values(payload?.photos || {})
+      .map((photo) => photo?.fullPath)
+      .filter(Boolean);
+    await Promise.allSettled(paths.map((fullPath) => deleteStoredImage(fullPath)));
+    return true;
+  } catch (error) {
+    console.warn("Could not delete progress photo set:", error);
+    return false;
   }
 }
 
