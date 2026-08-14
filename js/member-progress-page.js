@@ -67,7 +67,6 @@ function render() {
   const bodyFat = latestValue(checkins, "bodyFat");
   const waist = latestValue(checkins, "waist");
   const weightChange = calculateChange(checkins, "weight");
-  const weeklyStreak = calculateWeeklyCheckinStreak(checkins);
   const todayCheckin = findByDate(todayKey());
   const photosCount = Object.keys(photoSets).length;
 
@@ -114,8 +113,6 @@ function render() {
           ${metricMarkup("Waist", formatMetric(waist, "นิ้ว"), waist === null ? "ยังไม่มีข้อมูล" : "ล่าสุด")}
           ${metricMarkup("Photos", String(photosCount), photosCount === 1 ? "Set" : "Sets", "photos")}
         </section>
-
-        ${shareWinsMarkup({ weight, weightChange, weeklyStreak, photosCount })}
 
         <section class="clob-progress-section" aria-labelledby="chart-title">
           <div class="clob-progress-section-head">
@@ -188,160 +185,6 @@ function render() {
   bind();
 }
 
-
-function shareWinsMarkup({ weight, weightChange, weeklyStreak, photosCount }) {
-  const changeText = weightChange === null
-    ? "STARTING LINE"
-    : `${weightChange > 0 ? "+" : ""}${weightChange} KG`;
-  const progressCaption = weightChange === null
-    ? "Every check-in builds the story."
-    : weightChange < 0 ? "Built through consistency." : "Still showing up.";
-  return `
-    <section class="mw-win-section" aria-labelledby="mw-win-title">
-      <div class="mw-win-head">
-        <div><p class="clob-kicker">SHARE YOUR WIN</p><h2 id="mw-win-title">Made to be shared.</h2></div>
-        <span>Story-ready</span>
-      </div>
-      <div class="mw-win-scroll">
-        <article class="mw-win-card mw-win-card-progress">
-          <div class="mw-win-brand"><span>MW</span><strong>MORNING WARRIOR</strong></div>
-          <p>MY PROGRESS</p>
-          <strong class="mw-win-number">${escapeHtml(changeText)}</strong>
-          <span class="mw-win-sub">${escapeHtml(progressCaption)}</span>
-          <div class="mw-win-meta">
-            <span><b>${escapeHtml(formatMetric(weight, "kg"))}</b> Latest</span>
-            <span><b>${checkins.length}</b> Check-ins</span>
-          </div>
-          <button type="button" data-share-win="progress">Share Progress ↗</button>
-        </article>
-        <article class="mw-win-card mw-win-card-streak">
-          <div class="mw-win-brand"><span>🔥</span><strong>MORNING WARRIOR</strong></div>
-          <p>CONSISTENCY</p>
-          <strong class="mw-win-number">${weeklyStreak}</strong>
-          <span class="mw-win-sub">WEEK${weeklyStreak === 1 ? "" : "S"} CHECK-IN STREAK</span>
-          <div class="mw-win-meta">
-            <span><b>${photosCount}</b> Photo sets</span>
-            <span><b>${checkins.length}</b> Total updates</span>
-          </div>
-          <button type="button" data-share-win="streak">Share Streak ↗</button>
-        </article>
-      </div>
-      <p class="mw-win-hint">แคปการ์ดได้เลย หรือกด Share เพื่อสร้างภาพ Story 9:16</p>
-    </section>
-  `;
-}
-
-function calculateWeeklyCheckinStreak(items) {
-  const weekStarts = [...new Set((items || []).map((item) => weekStartKey(item.date)).filter(Boolean))]
-    .map((value) => new Date(`${value}T00:00:00`))
-    .sort((a, b) => b - a);
-  if (!weekStarts.length) return 0;
-  let streak = 1;
-  for (let i = 1; i < weekStarts.length; i += 1) {
-    const diffDays = Math.round((weekStarts[i - 1] - weekStarts[i]) / 86400000);
-    if (diffDays === 7) streak += 1;
-    else break;
-  }
-  return streak;
-}
-
-function weekStartKey(value) {
-  if (!value) return "";
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return "";
-  const day = (date.getDay() + 6) % 7;
-  date.setDate(date.getDate() - day);
-  return todayKey(date);
-}
-
-async function shareWin(type) {
-  const weight = latestValue(checkins, "weight");
-  const change = calculateChange(checkins, "weight");
-  const streak = calculateWeeklyCheckinStreak(checkins);
-  const canvas = document.createElement("canvas");
-  canvas.width = 1080;
-  canvas.height = 1920;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-
-  const gradient = ctx.createLinearGradient(0, 0, 1080, 1920);
-  gradient.addColorStop(0, "#111113");
-  gradient.addColorStop(.58, "#18181b");
-  gradient.addColorStop(1, "#2a0d15");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 1080, 1920);
-
-  ctx.fillStyle = "#e11d48";
-  ctx.fillRect(78, 100, 16, 94);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "700 44px Arial, sans-serif";
-  ctx.fillText("MORNING WARRIOR", 126, 155);
-  ctx.fillStyle = "rgba(255,255,255,.58)";
-  ctx.font = "600 28px Arial, sans-serif";
-  ctx.fillText(type === "streak" ? "CONSISTENCY" : "MY PROGRESS", 82, 410);
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "800 150px Arial, sans-serif";
-  const hero = type === "streak"
-    ? String(streak)
-    : (change === null ? "DAY ONE" : `${change > 0 ? "+" : ""}${change} KG`);
-  ctx.fillText(hero, 78, 610);
-
-  ctx.fillStyle = "#fb7185";
-  ctx.font = "700 42px Arial, sans-serif";
-  ctx.fillText(type === "streak" ? `WEEK${streak === 1 ? "" : "S"} CHECK-IN STREAK` : "PROGRESS, NOT PERFECTION.", 82, 690);
-
-  ctx.fillStyle = "rgba(255,255,255,.08)";
-  roundRect(ctx, 78, 880, 924, 420, 44);
-  ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,.55)";
-  ctx.font = "600 30px Arial, sans-serif";
-  ctx.fillText("LATEST WEIGHT", 130, 1000);
-  ctx.fillText("CHECK-INS", 590, 1000);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "800 68px Arial, sans-serif";
-  ctx.fillText(weight === null ? "—" : `${weight} kg`, 130, 1100);
-  ctx.fillText(String(checkins.length), 590, 1100);
-
-  ctx.fillStyle = "rgba(255,255,255,.65)";
-  ctx.font = "500 34px Arial, sans-serif";
-  ctx.fillText("Quiet work. Visible progress.", 82, 1570);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "700 30px Arial, sans-serif";
-  ctx.fillText(member?.name ? String(member.name).toUpperCase() : "MORNING WARRIOR", 82, 1660);
-  ctx.fillStyle = "#e11d48";
-  ctx.fillRect(82, 1710, 180, 8);
-
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", .96));
-  if (!blob) return;
-  const file = new File([blob], `morning-warrior-${type}.png`, { type: "image/png" });
-  try {
-    if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
-      await navigator.share({ files: [file], title: "Morning Warrior", text: "Progress, not perfection." });
-      return;
-    }
-  } catch (error) {
-    if (error?.name === "AbortError") return;
-  }
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = file.name;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
-  toast("สร้างภาพ Story แล้ว");
-}
-
-function roundRect(ctx, x, y, width, height, radius) {
-  const r = Math.min(radius, width / 2, height / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + width, y, x + width, y + height, r);
-  ctx.arcTo(x + width, y + height, x, y + height, r);
-  ctx.arcTo(x, y + height, x, y, r);
-  ctx.arcTo(x, y, x + width, y, r);
-  ctx.closePath();
-}
 
 function metricMarkup(label, value, note, action = "") {
   const tag = action ? "button" : "article";
@@ -422,9 +265,6 @@ function bind() {
   document.querySelector("#progress-photos").addEventListener("click", openPhotos);
   document.querySelector('[data-progress-action="photos"]')?.addEventListener("click", openPhotos);
 
-  document.querySelectorAll("[data-share-win]").forEach((button) => {
-    button.addEventListener("click", () => shareWin(button.dataset.shareWin));
-  });
 
   document.querySelectorAll("[data-edit-checkin]").forEach((button) => {
     button.addEventListener("click", () => {

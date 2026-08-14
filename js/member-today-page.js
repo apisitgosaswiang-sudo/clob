@@ -127,13 +127,7 @@ function render() {
           </button>
         ` : ""}
 
-        ${streakDays >= 2 ? `
-          <div class="home-streak-badge">
-            <span aria-hidden="true">🔥</span>
-            <strong>${streakDays} วันติดต่อกัน</strong>
-            <small>รักษาไว้ให้ได้นะ</small>
-          </div>
-        ` : ""}
+        ${homeWinMarkup(weight, weightChange)}
 
         <section class="clob-home-section" aria-labelledby="home-today-title">
           <div class="clob-home-section-head">
@@ -279,6 +273,136 @@ function priorityMarkup(priority, workoutSession) {
   `;
 }
 
+function homeWinMarkup(weight, weightChange) {
+  const hasWeightProgress = weight !== null && weightChange !== null && Number(weightChange) !== 0;
+  const hasWorkoutStreak = streakDays >= 2;
+  const type = hasWorkoutStreak ? "streak" : "progress";
+  const eyebrow = hasWorkoutStreak ? "YOUR WIN · CONSISTENCY" : "YOUR WIN · PROGRESS";
+  const hero = hasWorkoutStreak
+    ? `${streakDays} DAYS`
+    : weightChange === null
+      ? (weight === null ? "DAY ONE" : `${formatMetric(weight, "kg")}`)
+      : `${weightChange > 0 ? "+" : ""}${weightChange} KG`;
+  const copy = hasWorkoutStreak
+    ? "You kept showing up. Keep the streak alive."
+    : hasWeightProgress
+      ? "Quiet work. Visible progress."
+      : "Every check-in builds your story.";
+
+  return `
+    <section class="mw-home-win" aria-labelledby="mw-home-win-title">
+      <div class="mw-home-win-head">
+        <div>
+          <p class="clob-kicker">${escapeHtml(eyebrow)}</p>
+          <h2 id="mw-home-win-title">ความสำเร็จของคุณ</h2>
+        </div>
+        <button type="button" class="mw-home-win-more" data-home-route="progress">ดูทั้งหมด →</button>
+      </div>
+      <article class="mw-home-win-card is-${type}">
+        <div class="mw-home-win-brand"><span>${hasWorkoutStreak ? "🔥" : "MW"}</span><strong>MORNING WARRIOR</strong></div>
+        <div class="mw-home-win-copy">
+          <small>${hasWorkoutStreak ? "WORKOUT STREAK" : "MY PROGRESS"}</small>
+          <strong>${escapeHtml(hero)}</strong>
+          <p>${escapeHtml(copy)}</p>
+        </div>
+        <div class="mw-home-win-meta">
+          <span><b>${escapeHtml(formatMetric(weight, "kg"))}</b> Latest weight</span>
+          <span><b>${checkins.length}</b> Check-ins</span>
+        </div>
+        <button type="button" class="mw-home-share" data-home-share="${type}">
+          <span>Share your win</span><span aria-hidden="true">↗</span>
+        </button>
+      </article>
+    </section>
+  `;
+}
+
+async function shareHomeWin(type) {
+  const weight = latestValue(checkins, "weight");
+  const change = calculateChange(checkins, "weight");
+  const canvas = document.createElement("canvas");
+  canvas.width = 1080;
+  canvas.height = 1920;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const gradient = ctx.createLinearGradient(0, 0, 1080, 1920);
+  gradient.addColorStop(0, "#101012");
+  gradient.addColorStop(.6, "#18181b");
+  gradient.addColorStop(1, type === "streak" ? "#2a1608" : "#2a0d15");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 1080, 1920);
+
+  ctx.fillStyle = type === "streak" ? "#f97316" : "#e11d48";
+  ctx.fillRect(80, 108, 14, 94);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "700 44px Arial, sans-serif";
+  ctx.fillText("MORNING WARRIOR", 126, 165);
+  ctx.fillStyle = "rgba(255,255,255,.55)";
+  ctx.font = "700 28px Arial, sans-serif";
+  ctx.fillText(type === "streak" ? "WORKOUT STREAK" : "MY PROGRESS", 82, 430);
+
+  const hero = type === "streak"
+    ? `${streakDays} DAYS`
+    : change === null ? "DAY ONE" : `${change > 0 ? "+" : ""}${change} KG`;
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "800 142px Arial, sans-serif";
+  ctx.fillText(hero, 78, 635);
+  ctx.fillStyle = type === "streak" ? "#fdba74" : "#fb7185";
+  ctx.font = "700 40px Arial, sans-serif";
+  ctx.fillText(type === "streak" ? "KEEP SHOWING UP." : "PROGRESS, NOT PERFECTION.", 82, 720);
+
+  ctx.fillStyle = "rgba(255,255,255,.08)";
+  roundHomeRect(ctx, 78, 900, 924, 395, 42);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.55)";
+  ctx.font = "600 30px Arial, sans-serif";
+  ctx.fillText("LATEST WEIGHT", 130, 1010);
+  ctx.fillText("CHECK-INS", 590, 1010);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "800 66px Arial, sans-serif";
+  ctx.fillText(weight === null ? "—" : `${weight} kg`, 130, 1115);
+  ctx.fillText(String(checkins.length), 590, 1115);
+
+  ctx.fillStyle = "rgba(255,255,255,.68)";
+  ctx.font = "500 34px Arial, sans-serif";
+  ctx.fillText("Quiet outside. Active inside.", 82, 1585);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "700 30px Arial, sans-serif";
+  ctx.fillText(member?.greetingName ? String(member.greetingName).toUpperCase() : "MORNING WARRIOR", 82, 1670);
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", .96));
+  if (!blob) return;
+  const file = new File([blob], `morning-warrior-${type}.png`, { type: "image/png" });
+  try {
+    if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+      await navigator.share({ files: [file], title: "Morning Warrior", text: "Progress, not perfection." });
+      return;
+    }
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+  }
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = file.name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+  toast("สร้างภาพ Story แล้ว");
+}
+
+function roundHomeRect(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
+}
+
 function nutritionCardMarkup() {
   if (!nutritionDay?.target) {
     return `
@@ -397,6 +521,10 @@ function bind() {
   });
 
   document.querySelector("#home-review-banner")?.addEventListener("click", () => navigate("/member-weekly"));
+
+  document.querySelector("[data-home-share]")?.addEventListener("click", (event) => {
+    shareHomeWin(event.currentTarget.dataset.homeShare);
+  });
 
   document.querySelectorAll("[data-home-route]").forEach((button) => {
     button.addEventListener("click", () => {
