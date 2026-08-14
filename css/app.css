@@ -5296,3 +5296,101 @@ svg {
   font-size: .7rem;
   line-height: 1.5;
 }
+
+/* ===== Progress photo member management + compact compare ===== */
+.member-photo-history {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.member-photo-history-head,
+.member-photo-set-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.member-photo-history-head span,
+.member-photo-set-head small {
+  color: var(--muted);
+  font-size: .65rem;
+}
+
+.member-photo-set {
+  padding: 14px;
+}
+
+.member-photo-set-head > div:first-child {
+  min-width: 0;
+}
+
+.member-photo-set-head small {
+  display: block;
+  margin-top: 3px;
+  line-height: 1.4;
+}
+
+.member-photo-actions {
+  display: flex;
+  gap: 7px;
+}
+
+.member-photo-actions button,
+.edit-photo-slot button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  font-size: .62rem;
+  font-weight: 750;
+}
+
+.member-photo-actions .danger,
+.edit-photo-slot .danger-link {
+  color: #b42318;
+}
+
+.edit-photo-slot {
+  min-width: 0;
+}
+
+.edit-photo-slot img,
+.edit-photo-slot .photo-missing {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+}
+
+.edit-photo-slot button {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.member-photo-edit-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.photo-compare-pair,
+.photo-compare-pair figure {
+  min-width: 0;
+}
+
+.photo-compare-pair figure {
+  overflow: hidden;
+}
+
+.photo-compare-pair img,
+.photo-compare-pair .photo-missing {
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: 12px;
+  display: block;
+}
