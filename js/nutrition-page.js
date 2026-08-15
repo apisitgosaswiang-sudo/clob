@@ -64,8 +64,8 @@ function render() {
         <header class="clob-nutrition-header">
           <button id="nutrition-back" class="clob-icon-button" aria-label="กลับหน้า Home">←</button>
           <div>
-            <p class="clob-kicker">DAILY NUTRITION</p>
-            <h1>Nutrition</h1>
+            <p class="clob-kicker">TODAY'S FOOD</p>
+            <h1>Meals</h1>
           </div>
           <button id="nutrition-profile" class="avatar-button" aria-label="เปิดโปรไฟล์">
             ${renderAvatar({
@@ -90,7 +90,7 @@ function render() {
         <section class="clob-nutrition-hero ${calorieTone}" aria-labelledby="nutrition-remaining-title">
           ${target ? `
             <div class="clob-nutrition-hero-label">
-              <p class="clob-kicker">CALORIES REMAINING</p>
+              <p class="clob-kicker">YOU CAN STILL EAT</p>
               <span>${day.date === dateKey() ? "วันนี้" : formatDate(day.date)}</span>
             </div>
             <div class="clob-nutrition-remaining">
@@ -109,16 +109,14 @@ function render() {
           `}
         </section>
 
-        <section class="clob-nutrition-macros" aria-label="สารอาหารวันนี้">
-          ${macroMarkup("Protein", summary.protein, target?.protein, "g")}
-          ${macroMarkup("Carbs", summary.carbs, target?.carbs, "g")}
-          ${macroMarkup("Fat", summary.fat, target?.fat, "g")}
+        <section class="mw3-meal-rhythm" aria-label="มื้ออาหารวันนี้">
+          ${mealRhythmMarkup()}
         </section>
 
-        <button id="add-meal-button" class="clob-nutrition-add">
+        <button id="add-meal-button" class="clob-nutrition-add mw3-add-meal">
           <span>
             <small>LOG A MEAL</small>
-            <strong>เพิ่มอาหาร</strong>
+            <strong>เพิ่มอาหารหรือสแกนรูป</strong>
           </span>
           <span aria-hidden="true">＋</span>
         </button>
@@ -133,6 +131,17 @@ function render() {
           </div>
           <div class="clob-meal-timeline">
             ${mealTimelineMarkup()}
+          </div>
+        </section>
+
+        <section class="mw3-nutrition-detail" aria-labelledby="nutrition-detail-title">
+          <div class="clob-nutrition-section-head">
+            <div><p class="clob-kicker">TODAY'S NUTRITION</p><h2 id="nutrition-detail-title">สารอาหารวันนี้</h2></div>
+          </div>
+          <div class="clob-nutrition-macros" aria-label="สารอาหารวันนี้">
+            ${macroMarkup("Protein", summary.protein, target?.protein, "g")}
+            ${macroMarkup("Carbs", summary.carbs, target?.carbs, "g")}
+            ${macroMarkup("Fat", summary.fat, target?.fat, "g")}
           </div>
         </section>
 
@@ -153,6 +162,24 @@ function render() {
   `;
 
   bind();
+}
+
+function mealRhythmMarkup() {
+  const types = [
+    ["breakfast", "Breakfast", "เช้า"],
+    ["lunch", "Lunch", "กลางวัน"],
+    ["dinner", "Dinner", "เย็น"],
+    ["snack", "Snack", "ว่าง"]
+  ];
+  return types.map(([type, english, thai]) => {
+    const meals = day.meals.filter((meal) => meal.mealType === type);
+    const calories = meals.reduce((sum, meal) => sum + Number(meal.final?.calories || 0), 0);
+    return `
+      <button class="mw3-meal-slot ${meals.length ? "is-logged" : ""}" data-quick-meal="${type}">
+        <span class="mw3-meal-check">${meals.length ? "✓" : "+"}</span>
+        <span><small>${english}</small><strong>${meals.length ? `${formatNumber(calories)} kcal` : `เพิ่มมื้อ${thai}`}</strong></span>
+      </button>`;
+  }).join("");
 }
 
 function macroMarkup(label, consumed, target, unit) {
@@ -202,6 +229,9 @@ function bind() {
   document.querySelector("#nutrition-profile").addEventListener("click", () => navigate("/member-profile"));
   document.querySelector("#add-meal-button").addEventListener("click", openAddChoices);
   document.querySelector("#empty-add-meal")?.addEventListener("click", openAddChoices);
+  document.querySelectorAll("[data-quick-meal]").forEach((button) => {
+    button.addEventListener("click", openAddChoices);
+  });
 
   document.querySelector("#nutrition-date").addEventListener("change", async (event) => {
     const selected = event.currentTarget.value;
@@ -623,7 +653,7 @@ function memberBottomNavMarkup() {
     <nav class="bottom-nav clob-member-bottom-nav" aria-label="เมนูสมาชิก">
       <button class="nav-item" data-member-nav="home"><span>⌂</span><small>Home</small></button>
       <button class="nav-item" data-member-nav="workout"><span>✦</span><small>Workout</small></button>
-      <button class="nav-item is-active" data-member-nav="nutrition" aria-current="page"><span>◒</span><small>Nutrition</small></button>
+      <button class="nav-item is-active" data-member-nav="nutrition" aria-current="page"><span>◒</span><small>Meals</small></button>
       <button class="nav-item" data-member-nav="progress"><span>↗</span><small>Progress</small></button>
       <button class="nav-item" data-member-nav="profile"><span>○</span><small>Profile</small></button>
     </nav>
@@ -649,7 +679,7 @@ function loadingMarkup() {
     <main class="page member-page clob-nutrition-page">
       <section class="member-loading">
         <div class="loading-spinner"></div>
-        <p>กำลังโหลด Nutrition...</p>
+        <p>กำลังโหลด Meals...</p>
       </section>
     </main>
   `;

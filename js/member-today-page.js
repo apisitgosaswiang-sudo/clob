@@ -20,6 +20,7 @@ let checkins = [];
 let nutritionDay = null;
 let unreadReview = null;
 let streakDays = 0;
+let weeklyWorkoutCount = 0;
 let code = "";
 
 export async function renderMemberTodayPage() {
@@ -50,6 +51,7 @@ export async function renderMemberTodayPage() {
   ]);
 
   streakDays = calculateStreakDays(sessions);
+  weeklyWorkoutCount = sessions.filter((item) => item && item.status === "completed" && Date.now() - Number(item.completedAt || 0) < 7 * 86400000).length;
 
   unreadReview = findUnreadReview(code, reviews);
 
@@ -112,7 +114,11 @@ function render() {
           </button>
         </header>
 
-        <section class="clob-home-focus" aria-label="สิ่งสำคัญที่สุดตอนนี้">
+        <section class="mw3-home-hero" aria-label="สิ่งสำคัญที่สุดตอนนี้">
+          <div class="mw3-hero-context">
+            <span>DAY ${Math.max(1, checkins.length || 1)}</span>
+            ${streakDays >= 2 ? `<strong>🔥 ${streakDays} day streak</strong>` : `<strong>Build your momentum</strong>`}
+          </div>
           ${priorityMarkup(priority, currentWorkoutSession)}
         </section>
 
@@ -127,7 +133,13 @@ function render() {
           </button>
         ` : ""}
 
-        ${homeWinMarkup(weight, weightChange)}
+        ${streakDays >= 2 ? `
+          <div class="home-streak-badge">
+            <span aria-hidden="true">🔥</span>
+            <strong>${streakDays} วันติดต่อกัน</strong>
+            <small>รักษาไว้ให้ได้นะ</small>
+          </div>
+        ` : ""}
 
         <section class="clob-home-section" aria-labelledby="home-today-title">
           <div class="clob-home-section-head">
@@ -138,11 +150,18 @@ function render() {
             <span>${missions.filter((item) => item.completed).length}/${missions.length || 0}</span>
           </div>
 
-          <div class="clob-home-card-stack">
+          <div class="mw3-today-grid">
             ${nutritionCardMarkup()}
             ${workoutCardMarkup(workoutStatus)}
-            ${progressCardMarkup(weight, weightChange)}
           </div>
+        </section>
+
+        <section class="mw3-moment" aria-labelledby="mw3-moment-title">
+          <div class="mw3-moment-head">
+            <div><p class="clob-kicker">YOUR MOMENT</p><h2 id="mw3-moment-title">ความก้าวหน้าของคุณ</h2></div>
+            <button data-home-route="progress">ดูทั้งหมด →</button>
+          </div>
+          ${progressMomentMarkup(weight, weightChange)}
         </section>
 
         ${(water || sleep) ? `
@@ -273,143 +292,13 @@ function priorityMarkup(priority, workoutSession) {
   `;
 }
 
-function homeWinMarkup(weight, weightChange) {
-  const hasWeightProgress = weight !== null && weightChange !== null && Number(weightChange) !== 0;
-  const hasWorkoutStreak = streakDays >= 2;
-  const type = hasWorkoutStreak ? "streak" : "progress";
-  const eyebrow = hasWorkoutStreak ? "YOUR WIN · CONSISTENCY" : "YOUR WIN · PROGRESS";
-  const hero = hasWorkoutStreak
-    ? `${streakDays} DAYS`
-    : weightChange === null
-      ? (weight === null ? "DAY ONE" : `${formatMetric(weight, "kg")}`)
-      : `${weightChange > 0 ? "+" : ""}${weightChange} KG`;
-  const copy = hasWorkoutStreak
-    ? "You kept showing up. Keep the streak alive."
-    : hasWeightProgress
-      ? "Quiet work. Visible progress."
-      : "Every check-in builds your story.";
-
-  return `
-    <section class="mw-home-win" aria-labelledby="mw-home-win-title">
-      <div class="mw-home-win-head">
-        <div>
-          <p class="clob-kicker">${escapeHtml(eyebrow)}</p>
-          <h2 id="mw-home-win-title">ความสำเร็จของคุณ</h2>
-        </div>
-        <button type="button" class="mw-home-win-more" data-home-route="progress">ดูทั้งหมด →</button>
-      </div>
-      <article class="mw-home-win-card is-${type}">
-        <div class="mw-home-win-brand"><span>${hasWorkoutStreak ? "🔥" : "MW"}</span><strong>MORNING WARRIOR</strong></div>
-        <div class="mw-home-win-copy">
-          <small>${hasWorkoutStreak ? "WORKOUT STREAK" : "MY PROGRESS"}</small>
-          <strong>${escapeHtml(hero)}</strong>
-          <p>${escapeHtml(copy)}</p>
-        </div>
-        <div class="mw-home-win-meta">
-          <span><b>${escapeHtml(formatMetric(weight, "kg"))}</b> Latest weight</span>
-          <span><b>${checkins.length}</b> Check-ins</span>
-        </div>
-        <button type="button" class="mw-home-share" data-home-share="${type}">
-          <span>Share your win</span><span aria-hidden="true">↗</span>
-        </button>
-      </article>
-    </section>
-  `;
-}
-
-async function shareHomeWin(type) {
-  const weight = latestValue(checkins, "weight");
-  const change = calculateChange(checkins, "weight");
-  const canvas = document.createElement("canvas");
-  canvas.width = 1080;
-  canvas.height = 1920;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-
-  const gradient = ctx.createLinearGradient(0, 0, 1080, 1920);
-  gradient.addColorStop(0, "#101012");
-  gradient.addColorStop(.6, "#18181b");
-  gradient.addColorStop(1, type === "streak" ? "#2a1608" : "#2a0d15");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 1080, 1920);
-
-  ctx.fillStyle = type === "streak" ? "#f97316" : "#e11d48";
-  ctx.fillRect(80, 108, 14, 94);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "700 44px Arial, sans-serif";
-  ctx.fillText("MORNING WARRIOR", 126, 165);
-  ctx.fillStyle = "rgba(255,255,255,.55)";
-  ctx.font = "700 28px Arial, sans-serif";
-  ctx.fillText(type === "streak" ? "WORKOUT STREAK" : "MY PROGRESS", 82, 430);
-
-  const hero = type === "streak"
-    ? `${streakDays} DAYS`
-    : change === null ? "DAY ONE" : `${change > 0 ? "+" : ""}${change} KG`;
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "800 142px Arial, sans-serif";
-  ctx.fillText(hero, 78, 635);
-  ctx.fillStyle = type === "streak" ? "#fdba74" : "#fb7185";
-  ctx.font = "700 40px Arial, sans-serif";
-  ctx.fillText(type === "streak" ? "KEEP SHOWING UP." : "PROGRESS, NOT PERFECTION.", 82, 720);
-
-  ctx.fillStyle = "rgba(255,255,255,.08)";
-  roundHomeRect(ctx, 78, 900, 924, 395, 42);
-  ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,.55)";
-  ctx.font = "600 30px Arial, sans-serif";
-  ctx.fillText("LATEST WEIGHT", 130, 1010);
-  ctx.fillText("CHECK-INS", 590, 1010);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "800 66px Arial, sans-serif";
-  ctx.fillText(weight === null ? "—" : `${weight} kg`, 130, 1115);
-  ctx.fillText(String(checkins.length), 590, 1115);
-
-  ctx.fillStyle = "rgba(255,255,255,.68)";
-  ctx.font = "500 34px Arial, sans-serif";
-  ctx.fillText("Quiet outside. Active inside.", 82, 1585);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "700 30px Arial, sans-serif";
-  ctx.fillText(member?.greetingName ? String(member.greetingName).toUpperCase() : "MORNING WARRIOR", 82, 1670);
-
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", .96));
-  if (!blob) return;
-  const file = new File([blob], `morning-warrior-${type}.png`, { type: "image/png" });
-  try {
-    if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
-      await navigator.share({ files: [file], title: "Morning Warrior", text: "Progress, not perfection." });
-      return;
-    }
-  } catch (error) {
-    if (error?.name === "AbortError") return;
-  }
-
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = file.name;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
-  toast("สร้างภาพ Story แล้ว");
-}
-
-function roundHomeRect(ctx, x, y, width, height, radius) {
-  const r = Math.min(radius, width / 2, height / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + width, y, x + width, y + height, r);
-  ctx.arcTo(x + width, y + height, x, y + height, r);
-  ctx.arcTo(x, y + height, x, y, r);
-  ctx.arcTo(x, y, x + width, y, r);
-  ctx.closePath();
-}
-
 function nutritionCardMarkup() {
   if (!nutritionDay?.target) {
     return `
       <button class="clob-home-data-card" data-home-route="nutrition">
-        <span class="clob-data-icon">N</span>
+        <span class="clob-data-icon">🍽</span>
         <span class="clob-data-copy">
-          <small>NUTRITION</small>
+          <small>MEALS</small>
           <strong>${formatMacro(nutritionDay?.summary?.calories || 0)} kcal</strong>
           <span>เทรนเนอร์ยังไม่ได้ตั้งเป้าหมาย</span>
         </span>
@@ -421,9 +310,9 @@ function nutritionCardMarkup() {
   const remaining = Number(nutritionDay.summary.remainingCalories || 0);
   return `
     <button class="clob-home-data-card" data-home-route="nutrition">
-      <span class="clob-data-icon">N</span>
+      <span class="clob-data-icon">🍽</span>
       <span class="clob-data-copy">
-        <small>NUTRITION</small>
+        <small>MEALS</small>
         <strong>${remaining < 0 ? "เกิน" : "เหลือ"} ${Math.abs(Math.round(remaining)).toLocaleString("en-US")} kcal</strong>
         <span>Protein ${formatMacro(nutritionDay.summary.protein)} / ${formatMacro(nutritionDay.target.protein)} g</span>
       </span>
@@ -464,6 +353,33 @@ function progressCardMarkup(weight, weightChange) {
         <span>${escapeHtml(weight === null ? "แตะเพื่อบันทึก Check-in แรก" : trend)}</span>
       </span>
       <span class="clob-data-state">→</span>
+    </button>
+  `;
+}
+
+function progressMomentMarkup(weight, weightChange) {
+  const change = Number(weightChange);
+  const hasChange = weight !== null && Number.isFinite(change) && change !== 0;
+  const headline = hasChange
+    ? `${change > 0 ? "+" : ""}${change} kg`
+    : streakDays >= 2
+      ? `${streakDays} DAY STREAK`
+      : `${weeklyWorkoutCount} WORKOUT${weeklyWorkoutCount === 1 ? "" : "S"}`;
+  const subline = hasChange
+    ? "since your first check-in"
+    : streakDays >= 2
+      ? "You keep showing up."
+      : "completed in the last 7 days";
+
+  return `
+    <button class="mw3-win-card" data-home-route="progress">
+      <span class="mw3-win-orb" aria-hidden="true">↗</span>
+      <span class="mw3-win-copy">
+        <small>MORNING WARRIOR</small>
+        <strong>${escapeHtml(headline)}</strong>
+        <span>${escapeHtml(subline)}</span>
+      </span>
+      <span class="mw3-win-share">SHARE YOUR WIN ↗</span>
     </button>
   `;
 }
@@ -522,10 +438,6 @@ function bind() {
 
   document.querySelector("#home-review-banner")?.addEventListener("click", () => navigate("/member-weekly"));
 
-  document.querySelector("[data-home-share]")?.addEventListener("click", (event) => {
-    shareHomeWin(event.currentTarget.dataset.homeShare);
-  });
-
   document.querySelectorAll("[data-home-route]").forEach((button) => {
     button.addEventListener("click", () => {
       if (button.dataset.homeRoute === "workout") openWorkout();
@@ -581,7 +493,7 @@ function memberBottomNavMarkup() {
       </button>
       <button class="nav-item" data-member-nav="nutrition">
         <span>◒</span>
-        <small>Nutrition</small>
+        <small>Meals</small>
       </button>
       <button class="nav-item" data-member-nav="progress">
         <span>↗</span>

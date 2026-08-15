@@ -12,7 +12,9 @@ import {
   cancelWorkoutSession,
   countCompletedSets,
   countTotalSets,
-  getWorkoutProgress
+  getWorkoutProgress,
+  loadMemberWorkoutHistory,
+  calculateStreakDays
 } from "./member.js";
 
 const app = document.querySelector("#app");
@@ -45,7 +47,9 @@ export async function renderWorkoutOverview() {
     return;
   }
 
-  const member = await loadMember(code);
+  const [member, workoutHistory] = await Promise.all([loadMember(code), loadMemberWorkoutHistory(code)]);
+  const workoutStreak = calculateStreakDays(workoutHistory);
+  const weeklyCompleted = workoutHistory.filter((item) => item && item.status === "completed" && Date.now() - Number(item.completedAt || 0) < 7 * 86400000).length;
   let session = getActiveWorkoutSession(code);
   if (session && session.status === "in_progress" && session.workoutId !== member.workout.id && countCompletedSets(session) === 0) {
     cancelWorkoutSession(code);
@@ -96,12 +100,18 @@ export async function renderWorkoutOverview() {
           <div><p>WORKOUT${Number(member.workout.queueLength) > 1 ? ` · DAY ${member.workout.dayNumber}/${member.workout.queueLength}` : ""}</p><h1>${escapeHtml(member.workout.title)}</h1>${member.workout.dayLabel ? `<small>${escapeHtml(member.workout.dayLabel)}</small>` : ""}</div>
           <span class="workout-percent">READY</span>
         </header>
-        <section class="workout-progress-card card">
-          <div><span>โปรแกรมวันนี้</span><strong>${Number(member.workout.exercises || 0)} ท่า</strong></div>
-          <small>ระบบจะเริ่มจับเวลาเมื่อคุณกดเริ่ม ไม่สร้าง Session จากการเปิดหน้าดูเฉย ๆ</small>
+        <section class="mw3-workout-hero">
+          <p class="section-label">TODAY'S WORKOUT</p>
+          <h2>${escapeHtml(member.workout.title)}</h2>
+          <div class="mw3-workout-meta"><span>${Number(member.workout.exercises || 0)} EXERCISES</span><span>•</span><span>${Number(member.workout.duration || 0)} MIN</span></div>
+          <button id="start-workout-button" class="button button-primary">START WORKOUT</button>
         </section>
-        <button id="start-workout-button" class="button button-primary finish-workout-button">เริ่มออกกำลังกาย</button>
-        <button id="view-workout-history" class="button button-text finish-workout-button">ดูประวัติที่ทำสำเร็จแล้ว</button>
+        <section class="mw3-week-card">
+          <div><small>THIS WEEK</small><strong>${weeklyCompleted} workouts</strong></div>
+          <div class="mw3-week-dots">${[0,1,2,3,4].map((i) => `<span class="${i < Math.min(5, weeklyCompleted) ? "is-done" : ""}"></span>`).join("")}</div>
+          ${workoutStreak >= 2 ? `<p>🔥 ${workoutStreak} day streak</p>` : `<p>Keep showing up.</p>`}
+        </section>
+        <button id="view-workout-history" class="button button-text finish-workout-button">ดูประวัติการฝึก</button>
         ${memberWorkoutNav()}
       </div>
     `, "workout-page");
@@ -556,7 +566,7 @@ function memberWorkoutNav() {
     <nav class="bottom-nav member-workout-nav" aria-label="เมนูสมาชิก">
       <button class="nav-item" data-member-route="/member"><span>⌂</span><small>Home</small></button>
       <button class="nav-item is-active" data-member-route="/workout" aria-current="page"><span>✦</span><small>Workout</small></button>
-      <button class="nav-item" data-member-route="/nutrition"><span>◒</span><small>Nutrition</small></button>
+      <button class="nav-item" data-member-route="/nutrition"><span>◒</span><small>Meals</small></button>
       <button class="nav-item" data-member-progress><span>↗</span><small>Progress</small></button>
       <button class="nav-item" data-member-route="/member-profile"><span>○</span><small>Profile</small></button>
     </nav>

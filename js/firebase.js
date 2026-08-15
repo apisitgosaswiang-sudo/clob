@@ -985,34 +985,21 @@ export async function getProgressPhotoSets(memberCode) {
 }
 
 export async function deleteStoredImage(fullPath) {
-  if (!fullPath) return true;
-  if (!firebaseReady || !storage || !storageApi || !authUser) return false;
+  if (!firebaseReady || !storage || !storageApi || !authUser || !fullPath) return false;
   try {
     await storageApi.deleteObject(storageApi.storageRef(storage, fullPath));
     return true;
   } catch (error) {
-    // The database record can still be removed if an old Storage object is
-    // already gone. Treat object-not-found as a successful cleanup.
-    if (error?.code === "storage/object-not-found") return true;
+    if (String(error?.code || "").includes("object-not-found")) return true;
     console.warn("Could not delete stored image:", error);
     return false;
   }
 }
 
-export async function deleteProgressPhotoSet(memberCode, checkinId, payload = null) {
+export async function deleteProgressPhotoSet(memberCode, checkinId) {
   if (!firebaseReady || !database || !dbApi || !authUser) return false;
   try {
-    // Remove the visible record first so a Storage cleanup problem never leaves
-    // a member unable to delete their own progress set.
-    await dbApi.set(
-      dbApi.ref(database, `clob/progress/${memberCode}/checkins/${checkinId}`),
-      null
-    );
-
-    const paths = Object.values(payload?.photos || {})
-      .map((photo) => photo?.fullPath)
-      .filter(Boolean);
-    await Promise.allSettled(paths.map((fullPath) => deleteStoredImage(fullPath)));
+    await dbApi.set(dbApi.ref(database, `clob/progress/${memberCode}/checkins/${checkinId}`), null);
     return true;
   } catch (error) {
     console.warn("Could not delete progress photo set:", error);

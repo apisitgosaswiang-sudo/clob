@@ -1,6 +1,6 @@
 import { navigate } from "./router.js";
 import { loadMembers, getMemberByCode } from "./members.js";
-import { uploadImage, saveProgressPhotoSet, getProgressPhotoSets, deleteProgressPhotoSet, deleteStoredImage, waitForFirebaseReady } from "./firebase.js";
+import { uploadImage, saveProgressPhotoSet, getProgressPhotoSets, waitForFirebaseReady, deleteStoredImage, deleteProgressPhotoSet } from "./firebase.js";
 import { uploadProfilePhoto } from "./profile-photo-service.js";
 import { createImageCropper } from "./image-processor.js";
 
@@ -14,11 +14,7 @@ let cropper = null;
 let isTrainerView = false;
 let savedPhotoSets = {};
 let pendingMetadataRetry = null;
-let editingSetId = null;
-let editPending = {};
-let editRemoved = new Set();
-let editUploadedCache = {};
-let activeContext = "new";
+let editingSavedPhoto = null;
 
 function pendingPhotoStorageKey(memberCode) {
   return `clob_pending_progress_photos_${String(memberCode || "").trim()}`;
@@ -99,11 +95,6 @@ export async function renderProgressPhotosPage(code) {
 
   pending = {};
   savedPhotoSets = {};
-  editingSetId = null;
-  editPending = {};
-  editRemoved = new Set();
-  editUploadedCache = {};
-  activeContext = "new";
 
   // The app renders before Firebase initializes. Wait briefly here so a direct
   // visit to Progress Photos does not incorrectly show an empty history or let
@@ -156,104 +147,23 @@ function render() {
 
         ${isTrainerView ? compareMarkup() : ""}
 
-        ${isTrainerView ? trainerGalleryMarkup() : `
-          <section class="progress-photo-grid">${slots.map((slot) => slotMarkup(slot)).join("")}</section>
-          ${saveBarMarkup()}
-          ${memberSocialMarkup()}
-          ${memberGalleryMarkup()}
-        `}
+        ${isTrainerView ? trainerGalleryMarkup() : `<section class="progress-photo-grid">${slots.map((slot) => slotMarkup(slot)).join("")}</section>`}
 
-        ${isTrainerView ? "" : `<section class="photo-privacy card"><span>Private</span><p>รูป Progress เป็นของสมาชิก และสมาชิกสามารถแก้ไขหรือลบได้เอง</p></section>`}
+        ${isTrainerView ? "" : `<div class="mw3-photo-savebar"><span><small>READY TO SAVE</small><strong>${Object.keys(pending).length}/3 photos selected</strong></span><button id="save-photos" class="button button-primary progress-save" ${Object.keys(pending).length ? "" : "disabled"}>Save Photos</button></div>`}
+
+        ${isTrainerView ? "" : memberGalleryMarkup()}
+
+        ${isTrainerView ? "" : `<section class="photo-privacy card"><span>Private</span><p>สมาชิกเป็นผู้จัดการรูปของตนเอง</p></section>`}
 
         ${isTrainerView ? "" : `<input id="progress-file-input" type="file" accept="image/*" hidden>`}
         <div id="crop-modal" class="builder-modal" hidden></div>
         <div id="upload-modal" class="builder-modal" hidden></div>
-        <div id="photo-view-modal" class="builder-modal" hidden></div>
-        <div id="story-preview-modal" class="builder-modal" hidden></div>
         <div id="progress-toast" class="toast" hidden></div>
       </div>
     </main>
   `;
 
   bind();
-}
-
-
-function saveBarMarkup() {
-  const readyCount = slots.filter((slot) => Boolean(pending[slot])).length;
-  const complete = readyCount === slots.length;
-  return `
-    <div class="progress-save-bar ${readyCount ? "has-pending" : ""}">
-      <div>
-        <strong>${complete ? "พร้อมบันทึกแล้ว" : `${readyCount}/3 รูปพร้อม`}</strong>
-        <span>${complete ? "Front · Side · Back" : "อัปโหลดให้ครบ 3 มุมก่อนบันทึก"}</span>
-      </div>
-      <button id="save-photos" class="button button-primary progress-save" ${complete ? "" : "disabled"}>Save Photos</button>
-    </div>
-  `;
-}
-
-function memberSocialMarkup() {
-  const sets = Object.values(savedPhotoSets || {})
-    .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
-  if (sets.length < 2) return "";
-  const before = sets[0];
-  const after = sets[sets.length - 1];
-  const beforePhoto = before?.photos?.front?.url || before?.photos?.side?.url || before?.photos?.back?.url;
-  const afterPhoto = after?.photos?.front?.url || after?.photos?.side?.url || after?.photos?.back?.url;
-  if (!beforePhoto || !afterPhoto) return "";
-  return `
-    <section class="mw-share-section">
-      <div class="mw-share-section-head">
-        <div><p class="section-label">SHARE YOUR WIN</p><h2>Transformation</h2></div>
-        <span>Story-ready</span>
-      </div>
-      <button type="button" id="open-story-preview" class="mw-transformation-card">
-        <div class="mw-transformation-brand">MORNING WARRIOR</div>
-        <div class="mw-transformation-photos">
-          <figure><img src="${esc(beforePhoto)}" alt="Before"><figcaption>BEFORE</figcaption></figure>
-          <figure><img src="${esc(afterPhoto)}" alt="After"><figcaption>NOW</figcaption></figure>
-        </div>
-        <div class="mw-transformation-copy">
-          <strong>PROGRESS, NOT PERFECTION.</strong>
-          <span>${sets.length} photo check-ins · Tap for Story Preview</span>
-        </div>
-      </button>
-    </section>
-  `;
-}
-
-function openStoryPreview() {
-  const sets = Object.values(savedPhotoSets || {}).sort((a,b)=>Number(a.createdAt||0)-Number(b.createdAt||0));
-  if (sets.length < 2) return;
-  const before = sets[0];
-  const after = sets[sets.length - 1];
-  const beforePhoto = before?.photos?.front?.url || before?.photos?.side?.url || before?.photos?.back?.url;
-  const afterPhoto = after?.photos?.front?.url || after?.photos?.side?.url || after?.photos?.back?.url;
-  if (!beforePhoto || !afterPhoto) return;
-  const modal = document.querySelector("#story-preview-modal");
-  modal.hidden = false;
-  modal.innerHTML = `
-    <div class="mw-story-shell">
-      <button type="button" id="story-close" class="mw-story-close">×</button>
-      <div class="mw-story-card">
-        <div class="mw-story-top"><span>MORNING</span><strong>WARRIOR</strong></div>
-        <p class="mw-story-kicker">MY TRANSFORMATION</p>
-        <h2>Quiet work.<br>Visible progress.</h2>
-        <div class="mw-story-photos">
-          <figure><img src="${esc(beforePhoto)}" alt="Before"><figcaption>BEFORE · ${formatPhotoDate(before)}</figcaption></figure>
-          <figure><img src="${esc(afterPhoto)}" alt="Now"><figcaption>NOW · ${formatPhotoDate(after)}</figcaption></figure>
-        </div>
-        <div class="mw-story-footer"><strong>${sets.length}</strong><span>PROGRESS CHECK-INS</span><small>@ Morning Warrior</small></div>
-      </div>
-      <p class="mw-story-hint">แคปหน้าจอนี้แล้วแชร์ลง Story ได้เลย</p>
-    </div>
-  `;
-  document.querySelector("#story-close").onclick = () => { modal.hidden = true; modal.innerHTML = ""; };
-}
-
-function formatPhotoDate(set) {
-  return new Date(Number(set?.createdAt || Date.now())).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" });
 }
 
 // โหมดเทียบรูป 2 วัน วางคู่กัน (before/after)
@@ -311,74 +221,13 @@ function trainerGalleryMarkup() {
 }
 
 function memberGalleryMarkup() {
-  const sets = Object.entries(savedPhotoSets || {})
-    .map(([key, set]) => ({ key, set }))
-    .sort((a, b) => Number(b.set?.createdAt || 0) - Number(a.set?.createdAt || 0));
-  if (!sets.length) return "";
-
-  return `
-    <section class="member-photo-history">
-      <div class="member-photo-history-head">
-        <strong>Saved Photos</strong>
-        <span>${sets.length} ชุด</span>
-      </div>
-      ${sets.map(({ key, set }) => memberPhotoSetMarkup(set, key)).join("")}
-    </section>
-  `;
-}
-
-function memberPhotoSetMarkup(set, key) {
-  const setId = String(key || set.id || "");
-  const editing = editingSetId === setId;
-  const label = new Date(set.createdAt || Date.now()).toLocaleDateString("th-TH");
-
-  if (!editing) {
-    return `
-      <article class="member-photo-set card">
-        <div class="member-photo-set-head">
-          <strong>${esc(label)}</strong>
-          <div class="member-photo-actions">
-            <button type="button" data-photo-edit="${esc(setId)}">แก้ไข</button>
-            <button type="button" class="danger" data-photo-delete="${esc(setId)}">ลบ</button>
-          </div>
-        </div>
-        <div class="progress-photo-grid readonly">
-          ${slots.map((slot) => {
-            const photo = set.photos?.[slot];
-            return `<figure class="readonly-photo">${photo?.url ? `<button type="button" class="saved-photo-open" data-view-photo-set="${esc(setId)}" data-view-photo-slot="${slot}" aria-label="ดูและจัดการรูป ${slot}"><img src="${esc(photo.url)}" alt="${slot}"></button>` : `<div class="photo-missing">${slot}</div>`}<figcaption>${slot}</figcaption></figure>`;
-          }).join("")}
-        </div>
-      </article>
-    `;
-  }
-
-  return `
-    <article class="member-photo-set card editing">
-      <div class="member-photo-set-head">
-        <div><strong>${esc(label)}</strong><small>แตะ Replace เพื่อเปลี่ยนรูป หรือ Remove เพื่อลบรูปช่องนั้น</small></div>
-      </div>
-      <div class="progress-photo-grid readonly edit-photo-grid">
-        ${slots.map((slot) => {
-          const replacement = editPending[slot];
-          const original = set.photos?.[slot];
-          const removed = editRemoved.has(slot);
-          const url = replacement?.previewUrl || (!removed ? original?.url : "");
-          return `
-            <figure class="readonly-photo edit-photo-slot">
-              ${url ? `<img src="${esc(url)}" alt="${slot}">` : `<div class="photo-missing">${slot}</div>`}
-              <figcaption>${slot}</figcaption>
-              <button type="button" data-edit-replace="${slot}">Replace</button>
-              ${url ? `<button type="button" class="danger-link" data-edit-remove="${slot}">Remove</button>` : ""}
-            </figure>
-          `;
-        }).join("")}
-      </div>
-      <div class="member-photo-edit-actions">
-        <button type="button" class="button button-secondary" id="photo-edit-cancel">Cancel</button>
-        <button type="button" class="button button-primary" id="photo-edit-save">Save Changes</button>
-      </div>
-    </article>
-  `;
+  const sets = Object.values(savedPhotoSets || {}).sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+  if (!sets.length) return `<section class="mw3-photo-history"><div class="mw3-photo-history-head"><div><p class="section-label">HISTORY</p><h2>Saved Photos</h2></div></div><div class="photo-readonly-empty card"><strong>ยังไม่มีรูปย้อนหลัง</strong><p>ชุดรูปที่บันทึกแล้วจะแสดงตรงนี้</p></div></section>`;
+  return `<section class="mw3-photo-history"><div class="mw3-photo-history-head"><div><p class="section-label">HISTORY</p><h2>Saved Photos</h2></div><span>${sets.length} sets</span></div>${sets.map((set) => `
+    <article class="mw3-photo-set card">
+      <div class="mw3-photo-set-head"><strong>${new Date(set.createdAt || Date.now()).toLocaleDateString("th-TH", { dateStyle: "medium" })}</strong><button data-delete-photo-set="${esc(set.id)}" aria-label="ลบชุดรูป">•••</button></div>
+      <div class="progress-photo-grid readonly">${slots.map((slot) => { const x=set.photos?.[slot]; return `<figure class="readonly-photo ${x?.url ? "has-photo" : ""}" ${x?.url ? `data-view-photo="${esc(set.id)}" data-view-slot="${slot}"` : ""}>${x?.url ? `<img src="${esc(x.url)}" alt="${slot}">` : `<div class="photo-missing">${slot}</div>`}<figcaption>${slot}</figcaption></figure>`; }).join("")}</div>
+    </article>`).join("")}</section>`;
 }
 
 function filterPhotoSets(value) {
@@ -439,190 +288,102 @@ function bind() {
     openCropModal();
   });
 
-  document.querySelector("#open-story-preview")?.addEventListener("click", openStoryPreview);
-
-  document.querySelectorAll("[data-view-photo-set]").forEach((button) => {
-    button.addEventListener("click", () => openPhotoViewer(button.dataset.viewPhotoSet, button.dataset.viewPhotoSlot));
-  });
-
-  document.querySelectorAll("[data-photo-edit]").forEach((button) => {
-    button.addEventListener("click", () => {
-      editingSetId = button.dataset.photoEdit;
-      editPending = {};
-      editRemoved = new Set();
-      editUploadedCache = {};
-      render();
-    });
-  });
-
-  document.querySelectorAll("[data-photo-delete]").forEach((button) => {
-    button.addEventListener("click", () => deleteSavedSet(button.dataset.photoDelete));
-  });
-
-  document.querySelectorAll("[data-edit-replace]").forEach((button) => {
-    button.addEventListener("click", () => chooseFile(button.dataset.editReplace, "edit"));
-  });
-
-  document.querySelectorAll("[data-edit-remove]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const slot = button.dataset.editRemove;
-      if (editPending[slot]?.previewUrl) URL.revokeObjectURL(editPending[slot].previewUrl);
-      delete editPending[slot];
-      delete editUploadedCache[slot];
-      editRemoved.add(slot);
-      render();
-    });
-  });
-
-  document.querySelector("#photo-edit-cancel")?.addEventListener("click", cancelPhotoEdit);
-  document.querySelector("#photo-edit-save")?.addEventListener("click", saveEditedSet);
-
   document.querySelector("#save-photos").addEventListener("click", confirmUpload);
+
+  document.querySelectorAll("[data-view-photo]").forEach((figure) => {
+    figure.addEventListener("click", () => openSavedPhoto(figure.dataset.viewPhoto, figure.dataset.viewSlot));
+  });
+  document.querySelectorAll("[data-delete-photo-set]").forEach((button) => {
+    button.addEventListener("click", () => removeSavedPhotoSet(button.dataset.deletePhotoSet));
+  });
 }
 
-
-function openPhotoViewer(setId, slot) {
-  const set = savedPhotoSets?.[setId];
+function openSavedPhoto(setId, slot) {
+  const set = savedPhotoSets[setId];
   const photo = set?.photos?.[slot];
   if (!photo?.url) return;
-  const modal = document.querySelector("#photo-view-modal");
+  const modal = document.querySelector("#upload-modal");
   modal.hidden = false;
   modal.innerHTML = `
-    <div class="photo-viewer-card">
-      <div class="photo-viewer-head">
-        <div><span>${esc(slot.toUpperCase())}</span><strong>${formatPhotoDate(set)}</strong></div>
-        <button type="button" id="photo-view-close">×</button>
+    <div class="builder-modal-card mw3-photo-viewer">
+      <div class="builder-modal-head"><div><p class="section-label">${esc(slot.toUpperCase())}</p><h2>Progress Photo</h2></div><button id="saved-photo-close">×</button></div>
+      <img src="${esc(photo.url)}" alt="${esc(slot)}">
+      <div class="mw3-photo-view-actions">
+        <button id="saved-photo-replace" class="button button-secondary">Replace Photo</button>
+        <button id="saved-photo-delete" class="button button-text">Delete Photo</button>
       </div>
-      <img class="photo-viewer-image" src="${esc(photo.url)}" alt="${esc(slot)}">
-      <div class="photo-viewer-actions">
-        <button type="button" id="photo-view-replace" class="button button-secondary">Replace Photo</button>
-        <button type="button" id="photo-view-delete" class="button photo-danger-button">Delete Photo</button>
-      </div>
-    </div>
-  `;
-  const close = () => { modal.hidden = true; modal.innerHTML = ""; };
-  document.querySelector("#photo-view-close").onclick = close;
-  document.querySelector("#photo-view-replace").onclick = () => {
-    close();
-    editingSetId = setId;
-    editPending = {};
-    editRemoved = new Set();
-    editUploadedCache = {};
-    chooseFile(slot, "edit");
+    </div>`;
+  document.querySelector("#saved-photo-close").onclick = () => { modal.hidden = true; };
+  document.querySelector("#saved-photo-replace").onclick = () => {
+    modal.hidden = true;
+    editingSavedPhoto = { setId, slot };
+    activeSlot = slot;
+    chooseFile(slot);
   };
-  document.querySelector("#photo-view-delete").onclick = async () => {
-    if (!window.confirm(`ลบรูป ${slot} นี้ใช่ไหม?`)) return;
-    close();
-    editingSetId = setId;
-    editPending = {};
-    editRemoved = new Set([slot]);
-    editUploadedCache = {};
-    await saveEditedSet();
-  };
+  document.querySelector("#saved-photo-delete").onclick = () => removeSingleSavedPhoto(setId, slot);
 }
 
-function cancelPhotoEdit() {
-  Object.values(editPending).forEach((value) => {
-    if (value?.previewUrl) URL.revokeObjectURL(value.previewUrl);
-  });
-  editingSetId = null;
-  editPending = {};
-  editRemoved = new Set();
-  editUploadedCache = {};
-  activeContext = "new";
-  render();
-}
-
-async function deleteSavedSet(setId) {
-  const set = savedPhotoSets?.[setId];
+async function replaceSavedPhoto(setId, slot, result) {
+  const set = savedPhotoSets[setId];
   if (!set) return;
-  if (!window.confirm("ลบชุดรูปนี้ใช่ไหม? การลบไม่สามารถย้อนกลับได้")) return;
-
-  const ready = await waitForFirebaseReady(8000);
-  if (!ready) { toast("Firebase ยังไม่พร้อม กรุณาลองใหม่"); return; }
-
-  const deleted = await deleteProgressPhotoSet(member.code, setId, set);
-  if (!deleted) { toast("ลบรูปไม่สำเร็จ กรุณาลองใหม่"); return; }
-
-  delete savedPhotoSets[setId];
-  if (editingSetId === setId) cancelPhotoEdit();
-  else render();
-  toast("Deleted");
-}
-
-async function saveEditedSet() {
-  const set = savedPhotoSets?.[editingSetId];
-  if (!set) return;
-  if (!Object.keys(editPending).length && !editRemoved.size) {
-    cancelPhotoEdit();
-    return;
-  }
-
-  const button = document.querySelector("#photo-edit-save");
-  if (button) { button.disabled = true; button.textContent = "Saving..."; }
-
+  const oldPhoto = set.photos?.[slot] || null;
+  const modal = document.querySelector("#upload-modal");
+  modal.hidden = false;
+  modal.innerHTML = uploadMarkup("Replacing photo...", 0);
   try {
-    const ready = await waitForFirebaseReady(8000);
-    if (!ready) throw new Error("Firebase ยังไม่พร้อม กรุณาลองใหม่");
-
-    const nextPhotos = { ...(set.photos || {}) };
-    const oldPathsToDelete = [];
-
-    for (const slot of editRemoved) {
-      if (nextPhotos[slot]?.fullPath) oldPathsToDelete.push(nextPhotos[slot].fullPath);
-      delete nextPhotos[slot];
+    const extension = result.blob.type === "image/jpeg" ? "jpg" : result.blob.type === "image/png" ? "png" : "webp";
+    const uploaded = await uploadImage(
+      `members/${member.code}/checkins/${setId}/${slot}_${Date.now()}.${extension}`,
+      result.blob,
+      updateUploadProgress
+    );
+    const next = { ...set, updatedAt: Date.now(), photos: { ...(set.photos || {}), [slot]: uploaded } };
+    const ok = await saveProgressPhotoSet(member.code, setId, next);
+    if (!ok) throw new Error("บันทึกรูปใหม่ไม่สำเร็จ");
+    savedPhotoSets[setId] = next;
+    if (oldPhoto?.fullPath && oldPhoto.fullPath !== uploaded.fullPath) {
+      await deleteStoredImage(oldPhoto.fullPath);
     }
-
-    for (const [slot, value] of Object.entries(editPending)) {
-      let uploaded = editUploadedCache[slot];
-      if (!uploaded) {
-        const extension = value.blob.type === "image/jpeg" ? "jpg" : value.blob.type === "image/png" ? "png" : "webp";
-        uploaded = await uploadImage(
-          `members/${member.code}/checkins/${editingSetId}/${slot}_${Date.now()}.${extension}`,
-          value.blob
-        );
-        editUploadedCache[slot] = uploaded;
-      }
-      if (nextPhotos[slot]?.fullPath && nextPhotos[slot].fullPath !== uploaded.fullPath) {
-        oldPathsToDelete.push(nextPhotos[slot].fullPath);
-      }
-      nextPhotos[slot] = uploaded;
-    }
-
-    if (!Object.keys(nextPhotos).length) {
-      const deleted = await deleteProgressPhotoSet(member.code, editingSetId, set);
-      if (!deleted) throw new Error("ลบชุดรูปไม่สำเร็จ กรุณาลองใหม่");
-      delete savedPhotoSets[editingSetId];
-    } else {
-      const updated = {
-        ...set,
-        photos: nextPhotos,
-        updatedAt: Date.now()
-      };
-      const saved = await saveProgressPhotoSet(member.code, editingSetId, updated);
-      if (!saved) throw new Error("บันทึกการแก้ไขไม่สำเร็จ กรุณาลองใหม่");
-      savedPhotoSets[editingSetId] = updated;
-      await Promise.allSettled(oldPathsToDelete.map((path) => deleteStoredImage(path)));
-    }
-    Object.values(editPending).forEach((value) => {
-      if (value?.previewUrl) URL.revokeObjectURL(value.previewUrl);
-    });
-    editingSetId = null;
-    editPending = {};
-    editRemoved = new Set();
-    editUploadedCache = {};
-    activeContext = "new";
+    URL.revokeObjectURL(result.previewUrl);
+    modal.hidden = true;
     render();
-    toast("Saved");
+    toast("เปลี่ยนรูปแล้ว");
   } catch (error) {
-    if (button) { button.disabled = false; button.textContent = "Save Changes"; }
-    toast(error?.message || "Save failed");
+    showUploadError(error, () => replaceSavedPhoto(setId, slot, result));
   }
 }
 
-function chooseFile(slot, context = "new") {
+async function removeSingleSavedPhoto(setId, slot) {
+  const set = savedPhotoSets[setId];
+  const photo = set?.photos?.[slot];
+  if (!set || !photo) return;
+  if (!window.confirm(`ลบรูป ${slot} รูปนี้ใช่หรือไม่?`)) return;
+  if (photo.fullPath) await deleteStoredImage(photo.fullPath);
+  const next = { ...set, photos: { ...(set.photos || {}) } };
+  delete next.photos[slot];
+  const hasAny = Object.values(next.photos).some((item) => item?.url);
+  const ok = hasAny ? await saveProgressPhotoSet(member.code, setId, next) : await deleteProgressPhotoSet(member.code, setId);
+  if (!ok) { toast("ลบรูปไม่สำเร็จ กรุณาลองใหม่"); return; }
+  if (hasAny) savedPhotoSets[setId] = next; else delete savedPhotoSets[setId];
+  document.querySelector("#upload-modal").hidden = true;
+  render();
+  toast("ลบรูปแล้ว");
+}
+
+async function removeSavedPhotoSet(setId) {
+  const set = savedPhotoSets[setId];
+  if (!set) return;
+  if (!window.confirm("ลบรูปทั้งชุดนี้ใช่หรือไม่?")) return;
+  await Promise.all(Object.values(set.photos || {}).map((photo) => photo?.fullPath ? deleteStoredImage(photo.fullPath) : Promise.resolve(true)));
+  const ok = await deleteProgressPhotoSet(member.code, setId);
+  if (!ok) { toast("ลบชุดรูปไม่สำเร็จ กรุณาลองใหม่"); return; }
+  delete savedPhotoSets[setId];
+  render();
+  toast("ลบชุดรูปแล้ว");
+}
+
+function chooseFile(slot) {
   activeSlot = slot;
-  activeContext = context;
   document.querySelector("#progress-file-input").click();
 }
 
@@ -681,14 +442,11 @@ function openCropModal() {
       if (activeSlot === "profile") {
         await uploadProfile(result);
         close();
-      } else if (activeContext === "edit" && editingSetId) {
-        if (editPending[activeSlot]?.previewUrl) URL.revokeObjectURL(editPending[activeSlot].previewUrl);
-        editPending[activeSlot] = result;
-        editRemoved.delete(activeSlot);
-        delete editUploadedCache[activeSlot];
+      } else if (editingSavedPhoto) {
+        const target = editingSavedPhoto;
+        editingSavedPhoto = null;
         close();
-        render();
-        toast("Photo ready");
+        await replaceSavedPhoto(target.setId, target.slot, result);
       } else {
         pending[activeSlot] = result;
         close();
@@ -726,10 +484,7 @@ async function uploadProfile(result) {
 
 function confirmUpload() {
   const count = Object.keys(pending).length;
-  if (count !== slots.length) {
-    toast("กรุณาอัปโหลดรูปให้ครบ Front, Side และ Back");
-    return;
-  }
+  if (!count) return;
 
   const modal = document.querySelector("#upload-modal");
   modal.hidden = false;

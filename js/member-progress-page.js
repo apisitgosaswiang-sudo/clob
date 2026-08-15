@@ -108,17 +108,25 @@ function render() {
           </div>
         </section>
 
-        <section class="clob-progress-metrics" aria-label="ค่าล่าสุด">
-          ${metricMarkup("Body Fat", formatMetric(bodyFat, "%"), bodyFat === null ? "ยังไม่มีข้อมูล" : "ล่าสุด")}
-          ${metricMarkup("Waist", formatMetric(waist, "นิ้ว"), waist === null ? "ยังไม่มีข้อมูล" : "ล่าสุด")}
-          ${metricMarkup("Photos", String(photosCount), photosCount === 1 ? "Set" : "Sets", "photos")}
+        <section class="mw3-progress-actions" aria-label="เมนู Progress">
+          <button data-progress-action="body"><span>BODY</span><strong>Weight & Measurements</strong><small>${formatMetric(bodyFat, "%")} body fat · ${formatMetric(waist, "นิ้ว")} waist</small></button>
+          <button data-progress-action="photos"><span>PHOTOS</span><strong>Progress Photos</strong><small>${photosCount} ${photosCount === 1 ? "set" : "sets"} · Before & After</small></button>
+          <button data-progress-action="checkins"><span>CHECK-INS</span><strong>Check-in History</strong><small>${checkins.length} updates</small></button>
+          <button data-progress-action="records"><span>RECORDS</span><strong>Personal Records</strong><small>${prs.length} PR${prs.length === 1 ? "" : "s"}</small></button>
+        </section>
+
+        <section class="mw3-progress-share">
+          <small>YOUR STORY</small>
+          <strong>${weightChange === null ? "Your progress starts here." : `${weightChange > 0 ? "+" : ""}${weightChange} kg`}</strong>
+          <span>${weightChange === null ? "Keep checking in and Morning Warrior will build your story." : "since your first check-in"}</span>
+          <button id="progress-share-card">SHARE PROGRESS ↗</button>
         </section>
 
         <section class="clob-progress-section" aria-labelledby="chart-title">
           <div class="clob-progress-section-head">
             <div>
-              <p class="clob-kicker">แนวโน้ม</p>
-              <h2 id="chart-title">กราฟความก้าวหน้า</h2>
+              <p class="clob-kicker">TREND</p>
+              <h2 id="chart-title">Your trend</h2>
             </div>
           </div>
 
@@ -184,7 +192,6 @@ function render() {
 
   bind();
 }
-
 
 function metricMarkup(label, value, note, action = "") {
   const tag = action ? "button" : "article";
@@ -264,7 +271,20 @@ function bind() {
   document.querySelector("#empty-checkin-action")?.addEventListener("click", () => openEditor());
   document.querySelector("#progress-photos").addEventListener("click", openPhotos);
   document.querySelector('[data-progress-action="photos"]')?.addEventListener("click", openPhotos);
-
+  document.querySelector('[data-progress-action="body"]')?.addEventListener("click", () => document.querySelector("#member-checkin-action")?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  document.querySelector('[data-progress-action="checkins"]')?.addEventListener("click", () => document.querySelector("#timeline-title")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  document.querySelector('[data-progress-action="records"]')?.addEventListener("click", () => document.querySelector("#pr-title")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  document.querySelector("#progress-share-card")?.addEventListener("click", async () => {
+    const weight = latestValue(checkins, "weight");
+    const change = calculateChange(checkins, "weight");
+    const text = change === null
+      ? `My Morning Warrior progress: ${formatMetric(weight, "kg")}`
+      : `My Morning Warrior progress: ${change > 0 ? "+" : ""}${change} kg since I started.`;
+    if (navigator.share) {
+      try { await navigator.share({ title: "Morning Warrior Progress", text }); return; } catch {}
+    }
+    try { await navigator.clipboard.writeText(text); toast("คัดลอกข้อความสำหรับแชร์แล้ว"); } catch { toast(text); }
+  });
 
   document.querySelectorAll("[data-edit-checkin]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -453,7 +473,7 @@ function bottomNav() {
     <nav class="bottom-nav" aria-label="เมนูสมาชิก">
       <button class="nav-item" data-member-nav="home"><span>⌂</span><small>Home</small></button>
       <button class="nav-item" data-member-nav="workout"><span>✦</span><small>Workout</small></button>
-      <button class="nav-item" data-member-nav="nutrition"><span>◒</span><small>Nutrition</small></button>
+      <button class="nav-item" data-member-nav="nutrition"><span>◒</span><small>Meals</small></button>
       <button class="nav-item is-active"><span>↗</span><small>Progress</small></button>
       <button class="nav-item" data-member-nav="profile"><span>○</span><small>Profile</small></button>
     </nav>
