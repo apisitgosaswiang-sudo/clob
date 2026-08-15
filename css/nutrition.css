@@ -1122,3 +1122,7 @@
     margin-bottom: 7px;
   }
 }
+
+
+/* ===== Morning Warrior UX v3 — Meals ===== */
+.clob-nutrition-header h1{font-size:1.75rem;letter-spacing:-.05em}.clob-nutrition-hero{border-radius:28px;padding:24px 20px}.clob-nutrition-remaining strong{font-size:clamp(3.1rem,16vw,5rem);letter-spacing:-.08em}.clob-nutrition-remaining>span{font-size:.7rem}.mw3-meal-rhythm{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}.mw3-meal-slot{display:flex;align-items:center;gap:10px;min-height:78px;padding:12px;border:1px solid var(--line);border-radius:18px;text-align:left;background:var(--surface)}.mw3-meal-check{display:grid;flex:0 0 30px;width:30px;height:30px;place-items:center;border-radius:50%;color:var(--muted);background:#f4f4f5;font-weight:850}.mw3-meal-slot.is-logged .mw3-meal-check{color:#166534;background:#dcfce7}.mw3-meal-slot small,.mw3-meal-slot strong{display:block}.mw3-meal-slot small{color:var(--muted);font-size:.58rem;font-weight:800}.mw3-meal-slot strong{margin-top:3px;font-size:.7rem}.mw3-add-meal{position:sticky;bottom:calc(76px + env(safe-area-inset-bottom));z-index:14;margin-top:12px;border-radius:18px;box-shadow:0 14px 34px rgba(225,29,72,.18)}.mw3-nutrition-detail{margin-top:24px}.mw3-nutrition-detail .clob-nutrition-macros{margin-top:10px}.clob-nutrition-section{margin-top:28px}.clob-ai-cost-note{opacity:.7}@media(max-width:380px){.mw3-meal-rhythm{grid-template-columns:1fr}}
