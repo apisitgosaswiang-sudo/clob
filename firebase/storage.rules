@@ -4,7 +4,7 @@ service firebase.storage {
   match /b/{bucket}/o {
     match /members/{memberId}/{allPaths=**} {
       allow read: if request.auth != null;
-      allow delete: if request.auth != null;
+
       allow create, update: if request.auth != null
         && request.resource.size < 5 * 1024 * 1024
         && (
@@ -12,11 +12,12 @@ service firebase.storage {
           request.resource.contentType == 'image/jpeg' ||
           request.resource.contentType == 'image/png'
         );
+      allow delete: if request.auth != null;
     }
 
     match /coaches/{coachId}/{allPaths=**} {
       allow read: if request.auth != null;
-      allow delete: if request.auth != null;
+
       allow create, update: if request.auth != null
         && request.resource.size < 5 * 1024 * 1024
         && (
@@ -24,6 +25,7 @@ service firebase.storage {
           request.resource.contentType == 'image/jpeg' ||
           request.resource.contentType == 'image/png'
         );
+      allow delete: if request.auth != null;
     }
   }
 }
